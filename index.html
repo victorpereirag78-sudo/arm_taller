@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARM Taller</title>
+  <link rel="stylesheet" href="css/estilos.css?v=20260724">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ============ PANTALLA LOGIN ============ -->
+  <div id="pantalla-login" class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="logo-mark">🔧</span>
+        <h1>ARM <strong>Taller</strong></h1>
+        <p class="login-sub">Administración inteligente de talleres mecánicos</p>
+      </div>
+      <form id="form-login" onsubmit="return false;">
+        <label for="login-email">Correo</label>
+        <input type="email" id="login-email" autocomplete="username" placeholder="correo@taller.cl" required>
+        <label for="login-pass">Contraseña</label>
+        <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••" required>
+        <button type="button" id="btn-login" class="btn btn-primario btn-block">Ingresar</button>
+        <p id="login-error" class="login-error oculto"></p>
+      </form>
+      <p class="login-footer">ARM Sistemas © 2026</p>
+    </div>
+  </div>
+
+  <!-- ============ APLICACIÓN ============ -->
+  <div id="app" class="app oculto">
+
+    <!-- Navegación lateral -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="logo-mark">🔧</span>
+        <span class="sidebar-titulo">ARM <strong>Taller</strong></span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#dashboard"  class="nav-item" data-modulo="dashboard"><span class="nav-icono">▦</span> Dashboard</a>
+        <a href="#clientes"   class="nav-item" data-modulo="clientes"><span class="nav-icono">👤</span> Clientes</a>
+        <a href="#vehiculos"  class="nav-item" data-modulo="vehiculos"><span class="nav-icono">🚗</span> Vehículos</a>
+        <a href="#ordenes"    class="nav-item" data-modulo="ordenes"><span class="nav-icono">🛠</span> Órdenes de trabajo</a>
+        <a href="#ventas"     class="nav-item" data-modulo="ventas"><span class="nav-icono">🧾</span> Ventas</a>
+        <a href="#inventario" class="nav-item" data-modulo="inventario"><span class="nav-icono">📦</span> Inventario</a>
+        <a href="#usuarios"   class="nav-item" data-modulo="usuarios"><span class="nav-icono">🔑</span> Usuarios</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="btn-tema" class="btn btn-fantasma" title="Cambiar tema">🌙 Tema</button>
+        <button id="btn-salir" class="btn btn-fantasma" title="Cerrar sesión">⏻ Salir</button>
+      </div>
+    </aside>
+
+    <!-- Contenido -->
+    <main class="contenido">
+      <header class="topbar">
+        <button id="btn-menu" class="btn btn-fantasma solo-movil">☰</button>
+        <h2 id="titulo-modulo">Dashboard</h2>
+        <div class="topbar-usuario">
+          <span id="usuario-nombre">—</span>
+          <span id="usuario-empresa" class="chip">—</span>
+        </div>
+      </header>
+
+      <section id="modulo-contenido" class="modulo-contenido">
+        <!-- Cada módulo renderiza aquí -->
+      </section>
+    </main>
+  </div>
+
+  <!-- Scripts (con cache-busting) -->
+  <script src="js/config.js?v=20260724"></script>
+  <script src="js/auth.js?v=20260724"></script>
+  <script src="js/modulo-dashboard.js?v=20260724"></script>
+  <script src="js/app.js?v=20260724"></script>
+</body>
+</html>

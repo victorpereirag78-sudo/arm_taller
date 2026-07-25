@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARM Taller — Ingreso</title>
+    <link rel="stylesheet" href="css/login.css?v=20260725">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
+    <div class="login-wrapper">
+
+        <!-- ── Panel izquierdo: branding ── -->
+        <aside class="brand-panel">
+            <div class="brand-content">
+                <div class="brand-logo">
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+                        <path d="M14.7 6.3a4.5 4.5 0 0 0-5.9 5.9L3 18l3 3 5.8-5.8a4.5 4.5 0 0 0 5.9-5.9l-2.9 2.9-2.1-2.1 2.9-2.9z"
+                              stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1 class="brand-title">ARM<br>Taller</h1>
+                <p class="brand-sub">
+                    Plataforma inteligente para la administración integral
+                    de talleres mecánicos. Desde la recepción del vehículo
+                    hasta la entrega final.
+                </p>
+                <div class="brand-tags">
+                    <span class="tag">ÓRDENES</span>
+                    <span class="tag">VEHÍCULOS</span>
+                    <span class="tag">INVENTARIO</span>
+                    <span class="tag">VENTAS</span>
+                </div>
+            </div>
+            <div class="brand-footer">
+                <span class="version">ARM SISTEMAS · v0.1.0 · 2026</span>
+            </div>
+        </aside>
+
+        <!-- ── Panel derecho: formulario ── -->
+        <main class="form-panel">
+            <div class="form-card">
+                <div class="form-header">
+                    <h2>Bienvenido</h2>
+                    <p>Ingresa con tu RUT y contraseña</p>
+                </div>
+
+                <div class="alert-error" id="alertError"></div>
+
+                <form id="loginForm" novalidate>
+                    <div class="field-group">
+                        <label for="rut">RUT</label>
+                        <div class="input-wrap">
+                            <svg class="input-icon" viewBox="0 0 16 16" fill="none">
+                                <circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/>
+                                <path d="M2.5 14c.8-2.6 3-4 5.5-4s4.7 1.4 5.5 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                            </svg>
+                            <input type="text" id="rut" placeholder="12.345.678-9" autocomplete="username" inputmode="text">
+                        </div>
+                        <span class="field-error" id="rutError"></span>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="pass">Contraseña</label>
+                        <div class="input-wrap">
+                            <svg class="input-icon" viewBox="0 0 16 16" fill="none">
+                                <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+                                <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="currentColor" stroke-width="1.3"/>
+                            </svg>
+                            <input type="password" id="pass" placeholder="Tu contraseña" autocomplete="current-password">
+                            <button type="button" class="toggle-pass" id="togglePass" aria-label="Mostrar contraseña">
+                                <svg viewBox="0 0 16 16" fill="none">
+                                    <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" stroke="currentColor" stroke-width="1.3"/>
+                                    <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <span class="field-error" id="passError"></span>
+                    </div>
+
+                    <div class="form-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="recordar">
+                            <span class="checkbox-custom"></span>
+                            Recordar mi RUT en este equipo
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn-login" id="btnLogin">
+                        <span class="btn-text">Ingresar al taller</span>
+                        <span class="btn-loader"></span>
+                    </button>
+                </form>
+
+                <div class="form-footer">
+                    <p>Acceso exclusivo para talleres registrados.<br>
+                       ¿Problemas para ingresar? Contacta a ARM Sistemas.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/config.js?v=20260725"></script>
+    <script src="js/auth.js?v=20260725"></script>
+    <script src="js/login.js?v=20260725"></script>
+</body>
+</html>

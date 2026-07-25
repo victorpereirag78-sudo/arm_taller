@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARM Taller</title>
+    <link rel="stylesheet" href="css/app.css?v=20260725">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <svg class="brand-icon" width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M14.7 6.3a4.5 4.5 0 0 0-5.9 5.9L3 18l3 3 5.8-5.8a4.5 4.5 0 0 0 5.9-5.9l-2.9 2.9-2.1-2.1 2.9-2.9z"
+                          stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+                <span class="brand-name">ARM Taller</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Colapsar menú">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="sidebar-empresa">
+            <div class="empresa-logo" id="empresaLogo">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M3 21V7l9-4 9 4v14" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M9 21v-6h6v6" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+            </div>
+            <div class="empresa-info">
+                <span class="empresa-nombre" id="empresaNombre">—</span>
+                <span class="empresa-rol" id="usuarioRol">—</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- app.js construye el menú según appData.modulos -->
+        </nav>
+
+        <div class="sidebar-footer">
+            <button class="btn-logout" id="btnLogout">
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+                          stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Cerrar sesión</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- ── CONTENIDO ── -->
+    <div class="app-main" id="appMain">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="topbar-toggle" id="topbarToggle" aria-label="Abrir menú">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <div class="breadcrumb">
+                    <span>ARM Taller</span>
+                    <span>›</span>
+                    <span id="breadcrumbActual">Dashboard</span>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-tags" id="topbarTags"></div>
+                <div class="topbar-user">
+                    <span class="user-rut" id="userRut">—</span>
+                    <div class="user-avatar" id="userAvatar">—</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="panel-area" id="panelArea">
+
+            <section class="panel" id="panel-dashboard">
+                <div class="panel-header">
+                    <h2>Dashboard</h2>
+                    <span class="panel-tag admin">GENERAL</span>
+                </div>
+                <div class="panel-body" id="contenido-dashboard"></div>
+            </section>
+
+            <section class="panel" id="panel-ordenes">
+                <div class="panel-header">
+                    <h2>Órdenes de trabajo</h2>
+                    <span class="panel-tag ordenes">TALLER</span>
+                </div>
+                <div class="panel-body" id="contenido-ordenes">
+                    <div class="placeholder-text">Módulo en construcción — recepción → diagnóstico → reparación → entrega.</div>
+                </div>
+            </section>
+
+            <section class="panel" id="panel-clientes">
+                <div class="panel-header">
+                    <h2>Clientes</h2>
+                    <span class="panel-tag clientes">CLIENTES</span>
+                </div>
+                <div class="panel-body" id="contenido-clientes">
+                    <div class="placeholder-text">Módulo en construcción — clientes persona y empresa.</div>
+                </div>
+            </section>
+
+            <section class="panel" id="panel-vehiculos">
+                <div class="panel-header">
+                    <h2>Vehículos</h2>
+                    <span class="panel-tag vehiculos">VEHÍCULOS</span>
+                </div>
+                <div class="panel-body" id="contenido-vehiculos">
+                    <div class="placeholder-text">Módulo en construcción — patente, marca, modelo, kilometraje e historial.</div>
+                </div>
+            </section>
+
+            <section class="panel" id="panel-ventas">
+                <div class="panel-header">
+                    <h2>Ventas</h2>
+                    <span class="panel-tag ventas">VENTAS</span>
+                </div>
+                <div class="panel-body" id="contenido-ventas">
+                    <div class="placeholder-text">Módulo en construcción — venta de repuestos con descuento de stock.</div>
+                </div>
+            </section>
+
+            <section class="panel" id="panel-inventario">
+                <div class="panel-header">
+                    <h2>Inventario</h2>
+                    <span class="panel-tag inventario">REPUESTOS</span>
+                </div>
+                <div class="panel-body" id="contenido-inventario">
+                    <div class="placeholder-text">Módulo en construcción — repuestos por cantidad, stock y alertas.</div>
+                </div>
+            </section>
+
+            <section class="panel" id="panel-empresa">
+                <div class="panel-header">
+                    <h2>Empresa</h2>
+                    <span class="panel-tag admin">ADMIN</span>
+                </div>
+                <div class="panel-body" id="contenido-empresa">
+                    <div class="placeholder-text">Módulo en construcción — gestión de talleres (superadmin) y configuración.</div>
+                </div>
+            </section>
+
+            <section class="panel" id="panel-usuarios">
+                <div class="panel-header">
+                    <h2>Usuarios</h2>
+                    <span class="panel-tag admin">ADMIN</span>
+                </div>
+                <div class="panel-body" id="contenido-usuarios">
+                    <div class="placeholder-text">Módulo en construcción — usuarios y roles del taller.</div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="js/config.js?v=20260725"></script>
+    <script src="js/auth.js?v=20260725"></script>
+    <script src="js/modulo-dashboard.js?v=20260725"></script>
+    <script src="js/app.js?v=20260725"></script>
+</body>
+</html>
