@@ -166,9 +166,13 @@ const ModuloUsuarios = (() => {
                     <td><strong>${esc(ROL_INFO[rol]?.nombre || rol)}</strong>
                         <div style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono)">${esc(rol)}</div></td>
                     <td style="text-align:right;font-family:var(--font-mono)">${n}</td>
-                    <td>${paneles.length
-                        ? paneles.map(p => `<span class="tll-badge entregada">${esc(PANEL_INFO[p]?.titulo || p)}</span>`).join(' ')
-                        : '<span style="color:#f87171">sin acceso — no podría entrar</span>'}</td>
+                    <td class="tll-td-chips">${paneles.length
+                        ? `<span class="tll-chips-total">${paneles.length} panel${paneles.length === 1 ? '' : 'es'}</span>
+                           <div class="tll-chips">
+                             ${paneles.map(p =>
+                                `<span class="tll-chip">${esc(PANEL_INFO[p]?.titulo || p)}</span>`).join('')}
+                           </div>`
+                        : `<span class="tll-chip tll-chip--vacio">sin acceso — no podría entrar</span>`}</td>
                 </tr>`;
             }).join('')}
             </tbody>
