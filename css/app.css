@@ -816,3 +816,561 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
 .tll-badge.lista       { color: #34d399; background: rgba(52,211,153,0.08);  border-color: rgba(52,211,153,0.25); }
 .tll-badge.entregada   { color: #94a3b8; background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.25); }
 .tll-badge.anulada     { color: #f87171; background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.25); }
+
+/* ── Toolbar, botones y formularios del taller ─────────────────── */
+.tll-toolbar {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.tll-toolbar .tll-input { max-width: 260px; }
+.tll-toolbar-sep { flex: 1; }
+
+.tll-btn {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: background var(--transition), border-color var(--transition), transform var(--transition);
+}
+.tll-btn:active { transform: scale(0.98); }
+.tll-btn--primary { background: var(--accent); color: #fff; }
+.tll-btn--primary:hover { background: var(--accent-hover); }
+.tll-btn--ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border-color: var(--border);
+}
+.tll-btn--ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tll-btn--danger { background: transparent; color: #f87171; border-color: rgba(248,113,113,0.3); }
+.tll-btn--danger:hover { background: rgba(248,113,113,0.1); }
+.tll-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tll-input, .tll-select, .tll-textarea {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.7rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+.tll-input:focus, .tll-select:focus, .tll-textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.tll-textarea { resize: vertical; min-height: 70px; }
+
+.tll-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.8rem;
+}
+.tll-field label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.3rem;
+}
+.tll-field--full { grid-column: 1 / -1; }
+
+/* ── Modal ─────────────────────────────────────────────────────── */
+.tll-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2,6,18,0.7);
+    backdrop-filter: blur(3px);
+    z-index: 100;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4vh 1rem;
+    overflow-y: auto;
+}
+.tll-modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.4rem;
+    width: 100%;
+    animation: fadePanel 0.18s ease;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+}
+.tll-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.1rem;
+}
+.tll-modal-header h3 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+.tll-modal-cerrar {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 1.2rem; line-height: 1;
+    padding: 0.2rem 0.4rem; border-radius: var(--radius-sm);
+}
+.tll-modal-cerrar:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tll-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1.2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+/* ── Toast ─────────────────────────────────────────────────────── */
+.tll-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    padding: 0.65rem 1.1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.83rem;
+    font-weight: 500;
+    border: 1px solid;
+    animation: fadePanel 0.2s ease;
+    max-width: 90vw;
+}
+.tll-toast--ok    { background: rgba(52,211,153,0.12);  color: #6ee7b7; border-color: rgba(52,211,153,0.3); }
+.tll-toast--error { background: rgba(248,113,113,0.12); color: #fca5a5; border-color: rgba(248,113,113,0.3); }
+
+/* ── Detalle de orden ──────────────────────────────────────────── */
+.tll-ot-totales {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: flex-end;
+    font-size: 0.85rem;
+    margin-top: 0.8rem;
+    flex-wrap: wrap;
+}
+.tll-ot-totales strong { font-family: var(--font-mono); }
+.tll-link {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+}
+.tll-link:hover { text-decoration: underline; }
+
+/* ── Panel Recepción (puerta de entrada) ───────────────────────── */
+.tll-recep-paso {
+    display: flex;
+    gap: 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.2rem;
+    margin-bottom: 0.9rem;
+    max-width: 860px;
+}
+.tll-recep-num {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--accent);
+    background: var(--accent-glow);
+    border: 1px solid rgba(79,142,247,0.35);
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.tll-recep-body { flex: 1; min-width: 0; }
+.tll-recep-body h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.7rem; }
+
+.tll-recep-found {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.83rem;
+    background: rgba(52,211,153,0.08);
+    border: 1px solid rgba(52,211,153,0.25);
+    color: #6ee7b7;
+}
+.tll-recep-notfound {
+    margin-top: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+.tll-field-msg {
+    display: block;
+    font-size: 0.72rem;
+    margin-top: 0.25rem;
+    min-height: 0.9rem;
+}
+.tll-field-msg--error { color: #fca5a5; }
+
+.tll-recep-acciones {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    max-width: 860px;
+    margin-top: 0.4rem;
+}
+.tll-recep-acciones .tll-btn {
+    flex: 1;
+    min-width: 240px;
+    flex-direction: column;
+    padding: 0.9rem 1rem;
+    font-size: 0.9rem;
+    gap: 0.15rem;
+}
+.tll-recep-hint {
+    font-size: 0.68rem;
+    font-weight: 400;
+    opacity: 0.75;
+    font-family: var(--font-mono);
+    letter-spacing: 0.03em;
+}
+
+/* ── Utilidades ──────────────────────────────────────────────────── */
+.oculto { display: none !important; }
+
+/* ── Panel Módulos: tarjetas + switch ────────────────────────────── */
+.tll-modulos-intro {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: var(--bg-elevated, rgba(255,255,255,0.02));
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 1.2rem;
+}
+.tll-modulos-plan { margin-bottom: 1.6rem; }
+.tll-modulos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.9rem;
+    margin-top: 0.6rem;
+}
+.tll-modulo-card {
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: 10px;
+    padding: 0.9rem 1rem 1rem;
+    background: var(--bg-elevated, rgba(255,255,255,0.02));
+    transition: border-color 0.15s, background 0.15s;
+}
+.tll-modulo-card.activo {
+    border-color: var(--accent-glow);
+    background: rgba(79,142,247,0.04);
+}
+.tll-modulo-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+.tll-modulo-icono { font-size: 1.35rem; line-height: 1; }
+.tll-modulo-card h4 { font-size: 0.92rem; font-weight: 600; margin-bottom: 0.25rem; }
+.tll-modulo-card p {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+.tll-modulo-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+}
+.tll-modulo-nota {
+    font-size: 0.7rem;
+    color: var(--text-muted, var(--text-secondary));
+    font-family: var(--font-mono);
+}
+
+/* Switch */
+.tll-switch { display: inline-flex; cursor: pointer; }
+.tll-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.tll-switch-pista {
+    width: 38px; height: 21px;
+    border-radius: 999px;
+    background: rgba(148,163,184,0.25);
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    position: relative;
+    transition: background 0.18s;
+}
+.tll-switch-pista::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    transition: transform 0.18s;
+}
+.tll-switch input:checked + .tll-switch-pista { background: var(--accent); }
+.tll-switch input:checked + .tll-switch-pista::after { transform: translateX(17px); }
+.tll-switch input:disabled + .tll-switch-pista { opacity: 0.45; }
+.tll-switch input:disabled ~ * { cursor: not-allowed; }
+.tll-switch:has(input:disabled) { cursor: not-allowed; }
+.tll-switch input:focus-visible + .tll-switch-pista {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ── Punto de venta: catálogo a la izquierda, carro a la derecha ── */
+.tll-pos {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 1.2rem;
+    align-items: start;
+}
+.tll-pos-catalogo { min-width: 0; }
+.tll-pos-carro {
+    min-width: 0;
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: 10px;
+    background: var(--bg-elevated, rgba(255,255,255,0.02));
+    padding: 0.9rem 1rem 1.1rem;
+    position: sticky;
+    top: 1rem;
+}
+.tll-pos-carro .panel-header { padding: 0; border: 0; }
+.tll-pos-carro .tll-tabla th,
+.tll-pos-carro .tll-tabla td { padding-left: 0.4rem; padding-right: 0.4rem; }
+
+@media (max-width: 1100px) {
+    .tll-pos { grid-template-columns: 1fr; }
+    .tll-pos-carro { position: static; }
+}
+
+/* ── Checkbox en toolbars ────────────────────────────────────────── */
+.tll-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+.tll-check input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+.tll-check:hover { color: var(--text-primary); }
+
+/* ── Reportes: tarjetas, filas de cascada y barras ───────────────── */
+.tll-rep-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.1rem;
+    align-items: start;
+}
+.tll-rep-card {
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: 10px;
+    background: var(--bg-elevated, rgba(255,255,255,0.02));
+    padding: 1rem 1.1rem 1.1rem;
+}
+.tll-rep-card h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.8rem;
+    color: var(--text-primary);
+}
+.tll-rep-fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.32rem 0;
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+}
+.tll-rep-fila strong {
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.tll-rep-fila.fuerte {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+.tll-rep-fila.fuerte strong { font-size: 0.98rem; }
+.tll-rep-sep {
+    height: 1px;
+    background: var(--border, rgba(255,255,255,0.08));
+    margin: 0.45rem 0;
+}
+.tll-rep-nota {
+    font-size: 0.72rem;
+    color: var(--text-muted, var(--text-secondary));
+    line-height: 1.5;
+    margin-top: 0.8rem;
+}
+.tll-rep-nota-inline {
+    font-size: 0.7rem;
+    color: var(--text-muted, var(--text-secondary));
+    font-family: var(--font-mono);
+    margin-left: 0.4rem;
+}
+
+/* Barras sin librerías */
+.tll-barra {
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(148,163,184,0.16);
+    overflow: hidden;
+}
+.tll-barra-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent);
+    min-width: 2px;
+}
+
+/* ── Pestañas dentro de un panel ─────────────────────────────────── */
+.tll-tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+    margin-bottom: 1.1rem;
+}
+.tll-tab {
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-family: inherit;
+    padding: 0.55rem 0.9rem;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+.tll-tab:hover { color: var(--text-primary); }
+.tll-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+}
+
+/* ── Agenda: tablero por bahía ───────────────────────────────────── */
+.tll-agd-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: 10px;
+    background: var(--bg-elevated, rgba(255,255,255,0.02));
+}
+.tll-agd-grid { display: grid; min-width: max-content; }
+.tll-agd-cabecera {
+    position: sticky; top: 0; z-index: 3;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-elevated, #131722);
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-left: 1px solid var(--border, rgba(255,255,255,0.06));
+    white-space: nowrap;
+}
+.tll-agd-cabecera span {
+    display: block;
+    font-size: 0.64rem;
+    font-weight: 400;
+    color: var(--text-muted, var(--text-secondary));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.tll-agd-horas { border-right: 1px solid var(--border, rgba(255,255,255,0.06)); }
+.tll-agd-hora {
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    color: var(--text-muted, var(--text-secondary));
+    text-align: right;
+    padding-right: 0.45rem;
+    transform: translateY(-0.5em);
+}
+.tll-agd-col {
+    position: relative;
+    border-left: 1px solid var(--border, rgba(255,255,255,0.06));
+}
+.tll-agd-slot {
+    border-bottom: 1px dashed rgba(148,163,184,0.10);
+    cursor: pointer;
+}
+.tll-agd-slot:hover { background: rgba(79,142,247,0.07); }
+
+.tll-agd-cita {
+    position: absolute;
+    left: 3px; right: 3px;
+    border-radius: 5px;
+    padding: 2px 6px;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    overflow: hidden;
+    cursor: pointer;
+    border-left: 3px solid;
+    background: rgba(148,163,184,0.14);
+    border-color: #94a3b8;
+    transition: filter 0.15s;
+}
+.tll-agd-cita:hover { filter: brightness(1.25); }
+.tll-agd-cita-hora {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    opacity: 0.75;
+}
+.tll-agd-cita-txt strong { display: block; font-weight: 600; }
+.tll-agd-cita-txt span {
+    display: block;
+    font-size: 0.66rem;
+    opacity: 0.8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tll-agd-cita.est-agendada   { background: rgba(167,139,250,0.16); border-color: #a78bfa; color: #ddd6fe; }
+.tll-agd-cita.est-confirmada { background: rgba(34,211,238,0.16);  border-color: #22d3ee; color: #a5f3fc; }
+.tll-agd-cita.est-en_taller  { background: rgba(251,146,60,0.18);  border-color: #fb923c; color: #fed7aa; }
+.tll-agd-cita.est-completada { background: rgba(52,211,153,0.16);  border-color: #34d399; color: #a7f3d0; }
+.tll-agd-cita.est-no_asistio { background: rgba(248,113,113,0.16); border-color: #f87171; color: #fecaca;
+                               text-decoration: line-through; }
+
+/* ── Aviso: el superadmin está dentro de otro taller ─────────────── */
+.tll-aviso-contexto {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.82rem;
+    color: #fde68a;
+    background: rgba(251,191,36,0.12);
+    border-bottom: 1px solid rgba(251,191,36,0.3);
+}
+.tll-aviso-contexto strong { color: #fef3c7; }
+.tll-aviso-contexto .tll-btn { border-color: rgba(251,191,36,0.4); color: #fde68a; }
+.tll-aviso-contexto .tll-btn:hover { background: rgba(251,191,36,0.15); }
+
+/* ── Lista compacta de módulos (crear taller / asignar) ──────────── */
+.tll-modulos-mini {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 0.35rem 0.9rem;
+    margin-top: 0.35rem;
+}
+.tll-modulos-mini .tll-check {
+    white-space: normal;
+    align-items: flex-start;
+    line-height: 1.35;
+    padding: 0.15rem 0;
+}
+.tll-modulos-mini .tll-modulo-nota { display: block; margin-left: 0.2rem; }

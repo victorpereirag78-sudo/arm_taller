@@ -86,12 +86,12 @@ const ModuloDashboard = (() => {
                 <tbody>
                 ${ordenes.map(o => `
                     <tr>
-                        <td style="font-family:var(--font-mono)"><strong>${o.numero}</strong></td>
-                        <td style="font-family:var(--font-mono)">${o.taller_vehiculos?.patente ?? '—'}</td>
-                        <td>${[o.taller_vehiculos?.marca, o.taller_vehiculos?.modelo].filter(Boolean).join(' ') || '—'}</td>
-                        <td>${o.motivo_ingreso ?? '—'}</td>
-                        <td><span class="tll-badge ${o.estado}">${o.estado}</span></td>
-                        <td>${new Date(o.fecha_ingreso).toLocaleDateString('es-CL')}</td>
+                        <td style="font-family:var(--font-mono)"><strong>${esc(o.numero)}</strong></td>
+                        <td style="font-family:var(--font-mono)">${esc(o.taller_vehiculos?.patente) || '—'}</td>
+                        <td>${esc([o.taller_vehiculos?.marca, o.taller_vehiculos?.modelo].filter(Boolean).join(' ')) || '—'}</td>
+                        <td>${esc(o.motivo_ingreso) || '—'}</td>
+                        <td><span class="tll-badge ${esc(o.estado)}">${esc(o.estado)}</span></td>
+                        <td>${fmtFecha(o.fecha_ingreso)}</td>
                     </tr>`).join('')}
                 </tbody>
             </table>`;
