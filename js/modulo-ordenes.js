@@ -367,6 +367,15 @@ const ModuloOrdenes = (() => {
             <div style="font-size:0.85rem">${esc(orden.motivo_ingreso) || '—'}</div>
         </div>
 
+        ${(Array.isArray(orden.danos_recepcion) && orden.danos_recepcion.length) || orden.recepcion_observaciones ? `
+        <div class="tll-field tll-field--full" style="margin-bottom:0.8rem">
+            <label>Estado al ingresar</label>
+            <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.3rem">
+                ${(orden.danos_recepcion || []).map(d => `<span class="tll-badge diagnostico">${esc(d.tipo)} · ${esc(d.zona)}${d.nota ? ' (' + esc(d.nota) + ')' : ''}</span>`).join('')}
+            </div>
+            ${orden.recepcion_observaciones ? `<div style="font-size:0.82rem;color:var(--text-secondary)">${esc(orden.recepcion_observaciones)}</div>` : ''}
+        </div>` : ''}
+
         <div class="tll-form-grid" style="margin-bottom:1rem">
             <div class="tll-field tll-field--full">
                 <label>Diagnóstico</label>

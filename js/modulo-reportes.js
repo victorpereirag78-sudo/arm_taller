@@ -98,14 +98,17 @@ const ModuloReportes = (() => {
 
             _resumen = resumen;
 
-            const [mecanicos, ordenes, rotacion, medios] = await Promise.all([
+            const [mecanicos, ordenes, rotacion, medios, gastos, presup] = await Promise.all([
                 _cargarMecanicos(eid),
                 _cargarOrdenes(eid),
                 _cargarRotacion(eid),
-                _cargarMedios(eid)
+                _cargarMedios(eid),
+                _cargarGastos(eid),
+                _cargarPresupuestos(eid)
             ]);
 
             _render(resumen, mecanicos, ordenes, rotacion, medios);
+            _renderExtra(gastos, presup);
 
         } catch (err) {
             console.error('[Reportes] cargar:', err);
@@ -114,6 +117,68 @@ const ModuloReportes = (() => {
     }
 
     // ── Consultas de apoyo ────────────────────────────────────────
+    async function _cargarGastos(eid) {
+        const { data } = await db.rpc('fn_reporte_gastos', {
+            p_empresa_id: eid, p_desde: _desde, p_hasta: _hasta
+        });
+        return data?.ok ? data : null;
+    }
+
+    async function _cargarPresupuestos(eid) {
+        const { data } = await db.rpc('fn_reporte_presupuestos', {
+            p_empresa_id: eid, p_desde: _desde, p_hasta: _hasta
+        });
+        return data?.ok ? data : null;
+    }
+
+    const _CAT_GASTO = {
+        arriendo: 'Arriendo', electricidad: 'Electricidad', agua: 'Agua',
+        internet: 'Internet / teléfono', herramientas: 'Herramientas', insumos: 'Insumos',
+        combustible: 'Combustible', sueldos: 'Sueldos', mantencion_local: 'Mantención local',
+        marketing: 'Marketing', impuestos: 'Impuestos', otros: 'Otros'
+    };
+    const _MOT_PERD = {
+        precio: 'Precio', postergado: 'Postergado', no_responde: 'No responde',
+        otro_taller: 'Otro taller', otro: 'Otro', sin_motivo: 'Sin registrar'
+    };
+
+    function _renderExtra(gastos, presup) {
+        const cont = document.getElementById('rep-cuerpo');
+        if (!cont) return;
+        const bloques = [];
+
+        if (gastos && Number(gastos.total) > 0) {
+            const filas = Object.entries(gastos.por_categoria || {})
+                .sort((a, b) => Number(b[1]) - Number(a[1]))
+                .map(([k, v]) => `<div class="tll-rep-fila"><span>${esc(_CAT_GASTO[k] || k)}</span>
+                    <strong>${fmtCLP(v)}</strong></div>`).join('');
+            bloques.push(`<div class="tll-rep-card">
+                <h3>Gastos del periodo · ${fmtCLP(gastos.total)}</h3>
+                ${filas}</div>`);
+        }
+
+        if (presup && Number(presup.emitidos) > 0) {
+            const motivos = Object.entries(presup.perdida_por_motivo || {})
+                .map(([k, v]) => `<div class="tll-rep-fila"><span>${esc(_MOT_PERD[k] || k)}</span>
+                    <strong>${v}</strong></div>`).join('');
+            bloques.push(`<div class="tll-rep-card">
+                <h3>Presupuestos</h3>
+                <div class="tll-rep-fila"><span>Emitidos</span><strong>${presup.emitidos} · ${fmtCLP(presup.monto_emitido)}</strong></div>
+                <div class="tll-rep-fila"><span>Aprobados</span><strong>${presup.aprobados} · ${fmtCLP(presup.monto_aprobado)}</strong></div>
+                <div class="tll-rep-fila"><span>Rechazados</span><strong>${presup.rechazados} · ${fmtCLP(presup.monto_perdido)}</strong></div>
+                <div class="tll-rep-fila fuerte"><span>Tasa de conversión</span><strong>${presup.tasa_conversion}%</strong></div>
+                ${motivos ? '<div class="tll-rep-sep"></div><div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.3rem">Perdidos por motivo</div>' + motivos : ''}</div>`);
+        }
+
+        if (bloques.length) {
+            const wrap = document.createElement('div');
+            wrap.className = 'tll-rep-grid';
+            wrap.style.marginTop = '1rem';
+            wrap.innerHTML = bloques.join('');
+            cont.appendChild(wrap);
+        }
+    }
+
     async function _cargarMecanicos(eid) {
         const { data, error } = await db.rpc('fn_reporte_mecanicos', {
             p_empresa_id: eid, p_desde: _desde, p_hasta: _hasta

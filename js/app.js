@@ -28,6 +28,7 @@ const PANEL_ICONOS = {
     'panel-empleados': '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 20c.8-3.9 3.8-6 7.5-6s6.7 2.1 7.5 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     'panel-comisiones':'<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M14.5 9h-3.2a1.8 1.8 0 0 0 0 3.6h1.4a1.8 1.8 0 0 1 0 3.6H9.5M12 7.5v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     'panel-reportes':  '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    'panel-gastos':    '<svg viewBox="0 0 24 24" fill="none"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 10h6M8 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     'panel-dte':       '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 8h8M8 12h8M8 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     'panel-taller':    '<svg viewBox="0 0 24 24" fill="none"><path d="M3 21V7l9-4 9 4v14" stroke="currentColor" stroke-width="1.5"/><path d="M9 21v-6h6v6" stroke="currentColor" stroke-width="1.5"/></svg>',
     'panel-usuarios':  '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5"/></svg>',
@@ -43,7 +44,7 @@ const NAV_SECCIONES = [
     { label: 'Comercial', paneles: ['panel-ventas', 'panel-caja', 'panel-cxc', 'panel-inventario'] },
     { label: 'Compras',   paneles: ['panel-proveedores', 'panel-compras', 'panel-cxp'] },
     { label: 'Personal',  paneles: ['panel-empleados', 'panel-comisiones'] },
-    { label: 'Análisis',  paneles: ['panel-reportes', 'panel-dte'] },
+    { label: 'Análisis',  paneles: ['panel-gastos', 'panel-reportes', 'panel-dte'] },
     { label: 'Admin',     paneles: ['panel-taller', 'panel-usuarios', 'panel-modulos'] }
 ];
 
@@ -63,6 +64,7 @@ const PANEL_INIT = {
     'panel-proveedores':() => ModuloProveedores.init(),
     'panel-compras':   () => ModuloCompras.init(),
     'panel-cxp':       () => ModuloCxp.init(),
+    'panel-gastos':    () => ModuloGastos.init(),
     'panel-reportes':  () => ModuloReportes.init(),
     'panel-mantenciones':() => ModuloMantenciones.init(),
     'panel-presupuestos':() => ModuloPresupuestos.init(),

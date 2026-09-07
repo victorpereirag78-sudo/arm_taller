@@ -292,9 +292,18 @@ no leídas y "marcar leídas" (`useNovedades` → `fn_mv_novedades`). `db.ts`: +
     modal de rechazo con categoría + desglose "Presupuestos perdidos" en `modulo-presupuestos.js`.
     `?v=20260907f`.
 
-14. ⏳ Recepción digital (daños visibles) · 15/16/17 mayormente ya están (stock por RPC,
-    `v_taller_ordenes_saldo`, `fn_cerrar_caja`) · 18 `taller_cuentas_pagar` existe ·
-    19 Gastos (falta `taller_gastos`) · 20 Reportes (dashboard ampliado).
+14. ✅ **Recepción digital** — `sql/29`: `taller_ordenes.danos_recepcion` (jsonb) +
+    `recepcion_observaciones`. `modulo-recepcion.js`: marcador de daños (tipo × zona × nota);
+    se muestran en el detalle de OT y en `SeguimientoTallerPage` de Mi Vehículo.
+15/16/17. Ya estaban (stock por RPC + kardex, `v_taller_ordenes_saldo`, `fn_cerrar_caja`).
+18. `taller_cuentas_pagar` existe (módulo CxP).
+19. ✅ **Gastos** — `sql/30`: `taller_gastos` + `fn_reporte_gastos` + `fn_reporte_resumen`
+    ahora suma el libro de gastos al resultado. Módulo nuevo `js/modulo-gastos.js`
+    (panel `panel-gastos`, roles admin/jefe_taller/contador).
+20. ✅ **Reportes ampliados** — `modulo-reportes.js`: bloques "Gastos del periodo" (por
+    categoría) y "Presupuestos" (emitidos/aprobados/rechazados/tasa + perdidos por motivo).
+
+**→ FASE 2 COMPLETA.**  `?v=20260907i`.
 
 ### FASE 3 — Baja (no bloquea lanzamiento)
 Valoraciones · perfil público avanzado · fidelización · Premium Mi Vehículo · IA.

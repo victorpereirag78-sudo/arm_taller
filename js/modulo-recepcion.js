@@ -14,6 +14,20 @@ const ModuloRecepcion = (() => {
 
     let _clienteSel  = null;   // cliente encontrado o creado
     let _vehiculoSel = null;   // vehículo encontrado o creado
+    let _danos       = [];     // daños visibles marcados en la recepción
+
+    const DANO_TIPOS = [
+        ['rayon', 'Rayón'], ['abolladura', 'Abolladura'], ['golpe', 'Golpe'],
+        ['vidrio', 'Vidrio'], ['espejo', 'Espejo'], ['neumatico', 'Neumático'],
+        ['parachoques', 'Parachoques'], ['luces', 'Luces'], ['otro', 'Otro']
+    ];
+    const DANO_ZONAS = [
+        ['frontal', 'Frente'], ['trasera', 'Atrás'],
+        ['lateral_izq', 'Lado izquierdo'], ['lateral_der', 'Lado derecho'],
+        ['capo', 'Capó'], ['techo', 'Techo'], ['maletero', 'Maletero'],
+        ['interior', 'Interior']
+    ];
+    const _danoLabel = (arr, k) => (arr.find(x => x[0] === k) || [k, k])[1];
 
     // ── Init ──────────────────────────────────────────────────────
     async function init() {
@@ -23,8 +37,10 @@ const ModuloRecepcion = (() => {
         // sin limpiarlas la siguiente recepción se asocia al cliente anterior.
         _clienteSel  = null;
         _vehiculoSel = null;
+        _danos       = [];
         cont.innerHTML = _renderHTML();
         _bindEventos();
+        _bindDanos();
     }
 
     // ── HTML del formulario ───────────────────────────────────────
@@ -138,6 +154,44 @@ const ModuloRecepcion = (() => {
             </div>
         </div>
 
+        <!-- PASO 3b: ESTADO DEL VEHÍCULO -->
+        <div class="tll-recep-paso">
+            <div class="tll-recep-num">3b</div>
+            <div class="tll-recep-body">
+                <h3>Estado del vehículo al ingresar</h3>
+                <div class="tll-form-grid">
+                    <div class="tll-field">
+                        <label>Daño</label>
+                        <select class="tll-select" id="rec-dano-tipo">
+                            ${DANO_TIPOS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="tll-field">
+                        <label>Ubicación</label>
+                        <select class="tll-select" id="rec-dano-zona">
+                            ${DANO_ZONAS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="tll-field">
+                        <label>Detalle (opcional)</label>
+                        <input class="tll-input" id="rec-dano-nota" placeholder="Ej: profundo, 10 cm">
+                    </div>
+                    <div class="tll-field">
+                        <label>&nbsp;</label>
+                        <button class="tll-btn tll-btn--ghost" id="rec-dano-add" style="width:100%">+ Marcar daño</button>
+                    </div>
+                    <div class="tll-field tll-field--full">
+                        <div id="rec-danos-lista" style="display:flex;flex-wrap:wrap;gap:0.4rem"></div>
+                    </div>
+                    <div class="tll-field tll-field--full">
+                        <label>Observaciones de recepción</label>
+                        <textarea class="tll-textarea" id="rec-obs"
+                            placeholder="Ej: llega sin rueda de repuesto, radio no funciona…"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- PASO 4: DERIVAR -->
         <div class="tll-recep-acciones">
             <button class="tll-btn tll-btn--ghost" id="rec-btn-presupuesto">
@@ -149,6 +203,35 @@ const ModuloRecepcion = (() => {
                 <span class="tll-recep-hint">el vehículo queda en el taller</span>
             </button>
         </div>`;
+    }
+
+    // ── Daños visibles ───────────────────────────────────────────
+    function _bindDanos() {
+        const add = document.getElementById('rec-dano-add');
+        if (!add) return;
+        add.addEventListener('click', () => {
+            const tipo = document.getElementById('rec-dano-tipo').value;
+            const zona = document.getElementById('rec-dano-zona').value;
+            const nota = document.getElementById('rec-dano-nota').value.trim() || null;
+            _danos.push({ tipo, zona, nota });
+            document.getElementById('rec-dano-nota').value = '';
+            _renderDanos();
+        });
+        _renderDanos();
+    }
+
+    function _renderDanos() {
+        const cont = document.getElementById('rec-danos-lista');
+        if (!cont) return;
+        cont.innerHTML = _danos.length === 0
+            ? '<span style="color:var(--text-muted);font-size:0.82rem">Sin daños marcados</span>'
+            : _danos.map((d, i) => `
+                <span class="tll-badge diagnostico" style="display:inline-flex;align-items:center;gap:0.3rem">
+                    ${esc(_danoLabel(DANO_TIPOS, d.tipo))} · ${esc(_danoLabel(DANO_ZONAS, d.zona))}${d.nota ? ' (' + esc(d.nota) + ')' : ''}
+                    <button data-i="${i}" class="rec-dano-del" style="border:0;background:none;cursor:pointer;color:inherit;font-weight:700">✕</button>
+                </span>`).join('');
+        cont.querySelectorAll('.rec-dano-del').forEach(b =>
+            b.addEventListener('click', () => { _danos.splice(Number(b.dataset.i), 1); _renderDanos(); }));
     }
 
     // ── Eventos ───────────────────────────────────────────────────
@@ -442,6 +525,8 @@ const ModuloRecepcion = (() => {
                 kilometraje_ingreso: km,
                 nivel_combustible: document.getElementById('rec-combustible').value || null,
                 motivo_ingreso: motivo,
+                danos_recepcion: _danos,
+                recepcion_observaciones: document.getElementById('rec-obs')?.value.trim() || null,
                 usuario_creacion: window.appData.usuario.rut
             }).select().single();
             if (errOrd) throw errOrd;

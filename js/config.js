@@ -156,6 +156,14 @@ const MODULOS_CATALOGO = {
         paneles: ['panel-mantenciones']
     },
 
+    gastos: {
+        nombre: 'Gastos',
+        icono: '🧾',
+        descripcion: 'Arriendo, servicios, insumos, sueldos. Alimenta el resultado del periodo.',
+        plan: 'basico', requiere: [], estado: 'ok',
+        paneles: ['panel-gastos']
+    },
+
     reportes: {
         nombre: 'Reportes y rentabilidad',
         icono: '📊',
@@ -217,7 +225,7 @@ const ROL_MODULOS = {
         'panel-dashboard', 'panel-recepcion', 'panel-ordenes', 'panel-presupuestos',
         'panel-clientes', 'panel-vehiculos', 'panel-agenda', 'panel-mantenciones',
         'panel-ventas', 'panel-caja', 'panel-cxc', 'panel-inventario',
-        'panel-proveedores', 'panel-compras', 'panel-cxp',
+        'panel-proveedores', 'panel-compras', 'panel-cxp', 'panel-gastos',
         'panel-empleados', 'panel-comisiones',
         'panel-reportes', 'panel-dte',
         'panel-taller', 'panel-usuarios', 'panel-modulos'
@@ -225,7 +233,7 @@ const ROL_MODULOS = {
     'jefe_taller': [
         'panel-dashboard', 'panel-recepcion', 'panel-ordenes', 'panel-presupuestos',
         'panel-clientes', 'panel-vehiculos', 'panel-agenda', 'panel-mantenciones',
-        'panel-inventario', 'panel-empleados', 'panel-comisiones', 'panel-reportes'
+        'panel-inventario', 'panel-empleados', 'panel-comisiones', 'panel-gastos', 'panel-reportes'
     ],
     'recepcion': [
         'panel-dashboard', 'panel-recepcion', 'panel-ordenes', 'panel-presupuestos',
@@ -245,7 +253,7 @@ const ROL_MODULOS = {
         'panel-dashboard', 'panel-caja', 'panel-ventas', 'panel-cxc', 'panel-clientes'
     ],
     'contador': [
-        'panel-dashboard', 'panel-caja', 'panel-cxc', 'panel-cxp',
+        'panel-dashboard', 'panel-caja', 'panel-cxc', 'panel-cxp', 'panel-gastos',
         'panel-compras', 'panel-comisiones', 'panel-reportes', 'panel-dte'
     ],
     'lector': [
@@ -283,6 +291,7 @@ const PANEL_INFO = {
     'panel-proveedores':  { titulo: 'Proveedores',        tag: 'inventario', label: 'COMPRAS'   },
     'panel-compras':      { titulo: 'Compras',            tag: 'inventario', label: 'COMPRAS'   },
     'panel-cxp':          { titulo: 'Cuentas por pagar',  tag: 'inventario', label: 'PAGAR'     },
+    'panel-gastos':       { titulo: 'Gastos',             tag: 'admin',      label: 'FINANZAS'  },
     'panel-empleados':    { titulo: 'Empleados',          tag: 'clientes',   label: 'PERSONAL'  },
     'panel-comisiones':   { titulo: 'Comisiones',         tag: 'ventas',     label: 'PERSONAL'  },
     'panel-reportes':     { titulo: 'Reportes',           tag: 'admin',      label: 'ANÁLISIS'  },
