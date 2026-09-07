@@ -93,15 +93,20 @@ const Auth = (() => {
             `)
             .eq('rut', rut)
             .eq('pass', pass)
-            .eq('activo', true)
-            .limit(1);
+            .eq('activo', true);
 
         if (errU) throw new Error('Error de conexión con la base de datos.');
         if (!usuarios || usuarios.length === 0) {
             return { ok: false, error: 'RUT o contraseña incorrectos.' };
         }
 
-        const usuario = usuarios[0];
+        // Un RUT puede tener cuenta en varias empresas (ARM Universal es
+        // multiempresa): elegir la que sirve para entrar al taller.
+        const usuario = [...usuarios].sort((a, b) => {
+            const s = u => (u.empresas?.tipo === 'taller' ? 2 : 0)
+                         + (u.empresas?.slug === 'arm-sur' && u.rol === 'admin' ? 1 : 0);
+            return s(b) - s(a);
+        })[0];
 
         if (!usuario.empresas || !usuario.empresas.activo) {
             return { ok: false, error: 'El taller no está habilitado. Contacta al administrador.' };
@@ -162,6 +167,25 @@ const Auth = (() => {
             console.error('[Auth.restaurarSesion]', err);
             _limpiarStorage();
             return null;
+        }
+    }
+
+    /** Comprueba con la base que el token de sesión siga siendo válido.
+        Si venció o fue revocado, con la RLS por token la app vería todo
+        vacío en vez de "sesión expirada": mejor mandar al login. */
+    async function verificarToken() {
+        if (!getToken()) return true;   // sin token (aún no aplicado sql/14): no molestar
+        try {
+            const { data, error } = await db.rpc('fn_diag_sesion');
+            if (error) return true;      // RPC no existe todavía: no molestar
+            // La base recibió el request pero el token no resuelve → sesión muerta
+            if (data && data.hay_contexto_request && !data.token_valido) {
+                console.warn('[Auth] token de sesión vencido o revocado');
+                return false;
+            }
+            return true;
+        } catch {
+            return true;                 // ante la duda, no cerrar sesión
         }
     }
 
@@ -376,6 +400,7 @@ const Auth = (() => {
         login,
         logout,
         restaurarSesion,
+        verificarToken,
         calcularModulos,
         refrescarModulos,
         getToken,

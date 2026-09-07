@@ -15,9 +15,30 @@
 // Variables de entorno:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //   WHATSAPP_VERIFY_TOKEN   string arbitrario, el mismo que pones en Meta
+//   WHATSAPP_APP_SECRET     app secret de Meta — valida la firma X-Hub-Signature-256
 //   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID   para contestar la confirmación
 // ---------------------------------------------------------------------
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+/** Verifica que el POST viene de Meta (HMAC-SHA256 del body con el app secret).
+ *  Meta SIEMPRE firma. Si llega una firma pero no hay secret configurado, se
+ *  rechaza: no dejamos un endpoint de aprobación de presupuestos sin autenticar.
+ *  Solo se salta cuando no hay firma NI secret (prueba local con curl). */
+async function firmaValida(raw: string, firma: string | null): Promise<boolean> {
+  const secret = Deno.env.get("WHATSAPP_APP_SECRET");
+  if (!secret) return !firma;             // sin secret: solo se acepta lo que no viene firmado
+  if (!firma?.startsWith("sha256=")) return false;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(raw));
+  const hex = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `sha256=${hex}` === firma;
+}
 
 const APRUEBA = /\b(apruebo|aprobar|aprobado|acepto|si|sí|ok|dale)\b/i;
 const RECHAZA = /\b(rechazo|rechazar|rechazado|no)\b/i;
@@ -55,9 +76,13 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("method_not_allowed", { status: 405 });
 
   // Meta reintenta si no recibe 200 rápido: procesamos y respondemos 200 igual.
+  const raw = await req.text();
+  if (!(await firmaValida(raw, req.headers.get("x-hub-signature-256")))) {
+    return new Response("bad signature", { status: 401 });
+  }
   let payload: unknown;
   try {
-    payload = await req.json();
+    payload = JSON.parse(raw);
   } catch {
     return new Response("ok", { status: 200 });
   }

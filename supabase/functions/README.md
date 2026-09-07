@@ -21,6 +21,7 @@ supabase functions deploy taller-whatsapp-webhook --project-ref rhggndoqjnlzmfxs
 | `WHATSAPP_TOKEN` | token permanente de la app de Meta (WhatsApp Cloud API) |
 | `WHATSAPP_PHONE_ID` | id del número emisor |
 | `WHATSAPP_VERIFY_TOKEN` | string arbitrario; el mismo que se pone en el webhook de Meta |
+| `WHATSAPP_APP_SECRET` | app secret de Meta; valida la firma `X-Hub-Signature-256` del webhook entrante |
 
 `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase solo.
 

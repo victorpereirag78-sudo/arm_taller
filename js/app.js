@@ -98,6 +98,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Panel inicial: el primero disponible
     const inicial = window.appData.modulos[0] || 'panel-dashboard';
     mostrarPanel(inicial);
+
+    // En segundo plano: si el token de sesión venció, al login
+    Auth.verificarToken().then(ok => {
+        if (!ok) {
+            avisar('Tu sesión expiró. Vuelve a ingresar.', 'error');
+            setTimeout(Auth.logout, 1200);
+        }
+    });
 });
 
 // ── Mostrar panel ─────────────────────────────────────────────────
