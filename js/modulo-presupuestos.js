@@ -45,6 +45,7 @@ const ModuloPresupuestos = (() => {
                 <div class="tll-toolbar-sep"></div>
                 <button class="tll-btn tll-btn--ghost" id="prs-reload">↻ Actualizar</button>
             </div>
+            <div id="prs-perdidos"></div>
             <div id="prs-lista" class="tll-tabla-wrap"></div>`;
 
         document.getElementById('prs-nuevo').addEventListener('click', () => abrirNuevo());
@@ -99,14 +100,53 @@ const ModuloPresupuestos = (() => {
         const aprobados = activos.filter(p => p.estado === 'aprobado');
         const cerrados  = activos.filter(p => ['aprobado', 'convertido', 'rechazado'].includes(p.estado));
         const ganados   = activos.filter(p => ['aprobado', 'convertido'].includes(p.estado));
+        const perdidos  = activos.filter(p => p.estado === 'rechazado');
         const tasa = cerrados.length ? Math.round(ganados.length / cerrados.length * 100) : 0;
+        const montoPerdido = perdidos.reduce((s, p) => s + _num(p.total), 0);
 
         cont.innerHTML = `
             ${_kpi('📋', abiertos.length, 'Esperando respuesta')}
             ${_kpi('💰', fmtCLP(abiertos.reduce((s, p) => s + _num(p.total), 0)), 'Monto en juego')}
             ${_kpi('✅', aprobados.length, 'Aprobados por convertir',
                    aprobados.length ? '#34d399' : '')}
-            ${_kpi('📈', tasa + '%', 'Tasa de conversión')}`;
+            ${_kpi('📈', tasa + '%', 'Tasa de conversión')}
+            ${_kpi('📉', fmtCLP(montoPerdido), 'Perdido (rechazados)', montoPerdido ? '#f87171' : '')}`;
+
+        _renderPerdidos(perdidos);
+    }
+
+    /** Desglose de por qué se pierden presupuestos. */
+    function _renderPerdidos(perdidos) {
+        const cont = document.getElementById('prs-perdidos');
+        if (!cont) return;
+        if (perdidos.length === 0) { cont.innerHTML = ''; return; }
+
+        const ETIQ = { precio: 'Precio', postergado: 'Postergado', no_responde: 'No responde',
+                       otro_taller: 'Otro taller', otro: 'Otro', sin_motivo: 'Sin registrar' };
+        const porMotivo = {};
+        perdidos.forEach(p => {
+            const k = p.motivo_rechazo_cat || 'sin_motivo';
+            porMotivo[k] = porMotivo[k] || { n: 0, monto: 0 };
+            porMotivo[k].n++;
+            porMotivo[k].monto += _num(p.total);
+        });
+
+        cont.innerHTML = `
+        <details class="tll-rep-card" style="margin:0.5rem 0 1rem">
+            <summary style="cursor:pointer;font-weight:600">📉 Presupuestos perdidos · ${perdidos.length}</summary>
+            <table class="tll-tabla" style="margin-top:0.6rem">
+                <thead><tr><th>Motivo</th><th>Cantidad</th><th>Monto</th></tr></thead>
+                <tbody>
+                ${Object.entries(porMotivo)
+                    .sort((a, b) => b[1].monto - a[1].monto)
+                    .map(([k, v]) => `<tr>
+                        <td>${esc(ETIQ[k] || k)}</td>
+                        <td style="font-family:var(--font-mono)">${v.n}</td>
+                        <td style="font-family:var(--font-mono)">${fmtCLP(v.monto)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </details>`;
     }
 
     // ── Lista ─────────────────────────────────────────────────────
@@ -693,12 +733,56 @@ const ModuloPresupuestos = (() => {
         });
     }
 
+    const MOTIVOS_PERDIDA = [
+        ['precio',      'El precio'],
+        ['postergado',  'Lo va a pensar / postergó'],
+        ['no_responde', 'No responde'],
+        ['otro_taller', 'Se fue a otro taller'],
+        ['otro',        'Otro']
+    ];
+
     function _abrirRechazo() {
-        const motivo = prompt(
-            `Registrar que el cliente rechazó el presupuesto N° ${_abierto.numero}.\n\n` +
-            `¿Por qué? (precio, se fue a otro taller, lo va a pensar…)`);
-        if (motivo === null) return;
-        _responder('rechazado', { motivo: motivo.trim() || null });
+        abrirModal(`
+        <div class="tll-modal-header">
+            <h3>Presupuesto rechazado</h3>
+            <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+        <div class="placeholder-text" style="padding:0.8rem 1rem;text-align:left">
+            N° ${esc(_abierto.numero)} por <strong>${fmtCLP(_abierto.total)}</strong>.
+            Registrar el motivo ayuda a ver qué se está perdiendo y por qué.
+        </div>
+        <div class="tll-form-grid">
+            <div class="tll-field">
+                <label>Motivo *</label>
+                <select class="tll-select" id="prs-r-cat">
+                    ${MOTIVOS_PERDIDA.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}
+                </select>
+            </div>
+            <div class="tll-field tll-field--full">
+                <label>Detalle (opcional)</label>
+                <input class="tll-input" id="prs-r-detalle" placeholder="Ej: encontró el repuesto más barato">
+            </div>
+        </div>
+        <div class="tll-modal-footer">
+            <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cancelar</button>
+            <button class="tll-btn tll-btn--danger" id="prs-r-ok">Registrar rechazo</button>
+        </div>`, '560px');
+
+        document.getElementById('prs-r-ok').addEventListener('click', async () => {
+            document.getElementById('prs-r-ok').disabled = true;
+            const cat = document.getElementById('prs-r-cat').value;
+            const detalle = document.getElementById('prs-r-detalle').value.trim() || null;
+            const id = _abierto.id;
+            const ok = await _responder('rechazado', { motivo: detalle });
+            if (ok) {
+                await _rpc('fn_taller_presup_motivo_perdida', {
+                    p_empresa_id: window.appData.usuario.empresa_id,
+                    p_presupuesto_id: id,
+                    p_categoria: cat,
+                    p_detalle: detalle
+                });
+            }
+        });
     }
 
     async function _convertir() {

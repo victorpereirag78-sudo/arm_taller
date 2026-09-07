@@ -32,6 +32,15 @@ const db = (() => {
         token ? { global: { headers: { 'x-taller-token': token } } } : undefined);
 })();
 
+// ── Mi Vehículo (app del propietario, "ARM-DocsCars") ────────────
+// Dominio donde vive la app del cliente. La ruta /vincular/:token la
+// consume esa app para canjear la invitación. Ajustar al dominio real.
+const MI_VEHICULO_URL = 'https://docscars.armsistemas.cl';
+
+function vinculoLink(token) {
+    return `${MI_VEHICULO_URL.replace(/\/+$/, '')}/vincular/${token}`;
+}
+
 // ── Planes comerciales ───────────────────────────────────────────
 const PLANES = {
     basico:      { nombre: 'Básico',      orden: 1 },
@@ -284,10 +293,71 @@ const PANEL_INFO = {
 };
 
 // ── Estados de órdenes de trabajo ────────────────────────────────
+// Los 12 estados del flujo. El código interno se conserva corto para
+// no romper el SQL que ya lo usa (ver sql/20_ot_estados.sql); la
+// etiqueta es lo que ve el usuario. La base (taller_ot_estados /
+// taller_ot_transiciones) manda cuando está disponible; esto es el
+// fallback y el orden por defecto.
 const OT_ESTADOS = [
-    'recepcion', 'diagnostico', 'presupuesto', 'aprobada',
-    'reparacion', 'lista', 'entregada', 'anulada'
+    'recepcion', 'diagnostico', 'diagnostico_terminado', 'presupuesto',
+    'aprobada', 'rechazado', 'esperando_repuestos', 'reparacion',
+    'trabajo_terminado', 'lista', 'entregada', 'anulada'
 ];
+
+const OT_ESTADO_LABELS = {
+    recepcion:             'Recepcionado',
+    diagnostico:           'En diagnóstico',
+    diagnostico_terminado: 'Diagnóstico terminado',
+    presupuesto:           'Esperando aprobación',
+    aprobada:              'Aprobado',
+    rechazado:             'Rechazado',
+    esperando_repuestos:   'Esperando repuestos',
+    reparacion:            'En reparación',
+    trabajo_terminado:     'Trabajo terminado',
+    lista:                 'Listo para retirar',
+    entregada:             'Entregado',
+    anulada:               'Anulado'
+};
+
+// Clase de color del badge (paleta tll-badge de app.css)
+const OT_ESTADO_CLASE = {
+    recepcion:             'recepcion',
+    diagnostico:           'diagnostico',
+    diagnostico_terminado: 'diagnostico_terminado',
+    presupuesto:           'presupuesto',
+    aprobada:              'aprobada',
+    rechazado:             'rechazado',
+    esperando_repuestos:   'esperando_repuestos',
+    reparacion:            'reparacion',
+    trabajo_terminado:     'trabajo_terminado',
+    lista:                 'lista',
+    entregada:             'entregada',
+    anulada:               'anulada'
+};
+
+// Transiciones por defecto (fallback si no cargó taller_ot_transiciones)
+const OT_TRANSICIONES_DEFAULT = {
+    recepcion:             ['diagnostico', 'presupuesto', 'reparacion', 'anulada'],
+    diagnostico:           ['diagnostico_terminado', 'presupuesto', 'reparacion', 'anulada'],
+    diagnostico_terminado: ['presupuesto', 'aprobada', 'reparacion', 'anulada'],
+    presupuesto:           ['aprobada', 'rechazado', 'diagnostico', 'anulada'],
+    aprobada:              ['esperando_repuestos', 'reparacion', 'presupuesto', 'anulada'],
+    rechazado:             ['presupuesto', 'diagnostico', 'anulada'],
+    esperando_repuestos:   ['reparacion', 'aprobada', 'anulada'],
+    reparacion:            ['trabajo_terminado', 'esperando_repuestos', 'aprobada', 'anulada'],
+    trabajo_terminado:     ['lista', 'reparacion', 'anulada'],
+    lista:                 ['entregada', 'trabajo_terminado', 'reparacion', 'anulada'],
+    entregada:             [],
+    anulada:               []
+};
+
+function otEstadoLabel(codigo) {
+    return OT_ESTADO_LABELS[codigo] || codigo || '—';
+}
+
+function otEstadoClase(codigo) {
+    return OT_ESTADO_CLASE[codigo] || 'recepcion';
+}
 
 // ── Parámetros de negocio (por ahora fijos; luego por empresa) ────
 const IVA_TASA = 0.19;

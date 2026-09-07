@@ -21,6 +21,7 @@ const ModuloAgenda = (() => {
     let _vehiculos = [];
     let _empleados = [];
     let _resumen   = null;
+    let _solicitudes = [];        // solicitudes de hora desde Mi Vehículo
     let _vista     = 'tablero';   // tablero | lista
 
     const ESTADOS = [
@@ -56,6 +57,7 @@ const ModuloAgenda = (() => {
                 </select>
                 <button class="tll-btn tll-btn--ghost" id="agd-reload">↻</button>
             </div>
+            <div id="agd-solicitudes"></div>
             <div id="agd-cuerpo"><div class="placeholder-text">Cargando agenda…</div></div>`;
 
         document.getElementById('agd-fecha').addEventListener('change', (e) => {
@@ -116,6 +118,14 @@ const ModuloAgenda = (() => {
             _empleados = empRes.data || [];
             _resumen   = resRes.data?.ok ? resRes.data : null;
 
+            // Solicitudes de hora desde Mi Vehículo (silencioso si falta sql/25)
+            try {
+                const sRes = await db.from('v_taller_solicitudes_hora').select('*')
+                    .eq('empresa_id', eid).in('estado', ['nueva', 'contactado'])
+                    .order('creado_at', { ascending: false });
+                _solicitudes = sRes.error ? [] : (sRes.data || []);
+            } catch { _solicitudes = []; }
+
             _render();
         } catch (err) {
             console.error('[Agenda] cargar:', err);
@@ -126,9 +136,127 @@ const ModuloAgenda = (() => {
         }
     }
 
+    // ── Solicitudes de hora (desde Mi Vehículo) ───────────────────
+    function _renderSolicitudes() {
+        const cont = document.getElementById('agd-solicitudes');
+        if (!cont) return;
+        const nuevas = _solicitudes.filter(s => s.estado === 'nueva').length;
+        if (_solicitudes.length === 0) { cont.innerHTML = ''; return; }
+
+        cont.innerHTML = `
+        <details class="tll-rep-card" style="margin-bottom:1rem" ${nuevas ? 'open' : ''}>
+            <summary style="cursor:pointer;font-weight:600">
+                📨 Solicitudes de hora${nuevas ? ` · <span class="tll-badge presupuesto">${nuevas} nueva${nuevas > 1 ? 's' : ''}</span>` : ''}
+            </summary>
+            <div style="margin-top:0.7rem;display:flex;flex-direction:column;gap:0.6rem">
+            ${_solicitudes.map(s => `
+                <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.7rem;font-size:0.86rem">
+                    <div style="display:flex;justify-content:space-between;gap:0.5rem">
+                        <strong>${esc(s.nombre) || 'Sin nombre'}</strong>
+                        <span class="tll-badge ${s.estado === 'nueva' ? 'presupuesto' : 'aprobada'}">${esc(s.estado)}</span>
+                    </div>
+                    <div style="color:var(--text-secondary);margin-top:0.2rem">
+                        ${esc(s.patente || s.vehiculo_desc || '—')}
+                        ${s.servicio ? ' · ' + esc(s.servicio) : ''}
+                        ${s.telefono ? ' · ' + esc(s.telefono) : ''}
+                    </div>
+                    ${s.motivo ? `<div style="margin-top:0.2rem">${esc(s.motivo)}</div>` : ''}
+                    <div style="color:var(--text-muted);margin-top:0.2rem">
+                        ${s.fecha_preferida ? 'Prefiere ' + fmtFecha(s.fecha_preferida) : 'Sin fecha'}
+                        ${s.franja && s.franja !== 'cualquiera' ? ' (' + esc(s.franja) + ')' : ''}
+                        · pedida ${fmtFecha(s.creado_at)}
+                    </div>
+                    <div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">
+                        <button class="tll-btn tll-btn--primary sol-agendar" data-id="${s.id}">Agendar</button>
+                        ${s.telefono ? `<a class="tll-btn tll-btn--ghost" href="https://wa.me/${esc((s.telefono || '').replace(/\D/g, ''))}" target="_blank">WhatsApp</a>` : ''}
+                        ${s.estado === 'nueva' ? `<button class="tll-btn tll-btn--ghost sol-contactado" data-id="${s.id}">Marcar contactado</button>` : ''}
+                        <button class="tll-btn tll-btn--ghost sol-descartar" data-id="${s.id}">Descartar</button>
+                    </div>
+                </div>`).join('')}
+            </div>
+            <p class="tll-rep-nota">Al agendar, crea la cita con <strong>+ Nueva cita</strong>. Convertirla en cita automáticamente llega en una próxima versión.</p>
+        </details>`;
+
+        cont.querySelectorAll('.sol-contactado').forEach(b =>
+            b.addEventListener('click', () => _marcarSolicitud(b.dataset.id, 'contactado')));
+        cont.querySelectorAll('.sol-descartar').forEach(b =>
+            b.addEventListener('click', () => _marcarSolicitud(b.dataset.id, 'descartada')));
+        cont.querySelectorAll('.sol-agendar').forEach(b =>
+            b.addEventListener('click', () =>
+                _agendarSolicitud(_solicitudes.find(s => s.id === b.dataset.id))));
+    }
+
+    function _agendarSolicitud(s) {
+        if (!s) return;
+        const bahiasOpt = _bahias.map(x => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('');
+        abrirModal(`
+        <div class="tll-modal-header">
+            <h3>Agendar solicitud</h3>
+            <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.87rem">
+            ${esc(s.nombre) || '—'} · ${esc(s.patente || s.vehiculo_desc || '')}${s.servicio ? ' · ' + esc(s.servicio) : ''}
+            ${s.fecha_preferida ? '<br>Prefiere ' + fmtFecha(s.fecha_preferida) + (s.franja && s.franja !== 'cualquiera' ? ' (' + esc(s.franja) + ')' : '') : ''}
+        </p>
+        <div class="tll-form-grid">
+            <div class="tll-field">
+                <label>Fecha *</label>
+                <input class="tll-input" id="sol-a-fecha" type="date" value="${s.fecha_preferida || _hoy()}">
+            </div>
+            <div class="tll-field">
+                <label>Hora *</label>
+                <input class="tll-input" id="sol-a-hora" type="time" value="${s.franja === 'tarde' ? '15:00' : '09:30'}">
+            </div>
+            <div class="tll-field">
+                <label>Duración (min)</label>
+                <input class="tll-input" id="sol-a-dur" type="number" min="15" step="15" value="60">
+            </div>
+            <div class="tll-field">
+                <label>Bahía</label>
+                <select class="tll-select" id="sol-a-bahia">
+                    <option value="">— Sin asignar —</option>${bahiasOpt}
+                </select>
+            </div>
+        </div>
+        <div class="tll-modal-footer">
+            <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cancelar</button>
+            <button class="tll-btn tll-btn--primary" id="sol-a-guardar">Crear cita</button>
+        </div>`);
+
+        document.getElementById('sol-a-guardar').addEventListener('click', async () => {
+            const btn = document.getElementById('sol-a-guardar');
+            btn.disabled = true;
+            const { data, error } = await db.rpc('fn_solicitud_a_cita', {
+                p_empresa_id: window.appData.usuario.empresa_id,
+                p_solicitud_id: s.id,
+                p_fecha: document.getElementById('sol-a-fecha').value,
+                p_hora: document.getElementById('sol-a-hora').value,
+                p_duracion: Number(document.getElementById('sol-a-dur').value) || 60,
+                p_bahia_id: document.getElementById('sol-a-bahia').value || null,
+                p_usuario: window.appData.usuario.rut
+            });
+            if (error || !data?.ok) {
+                btn.disabled = false;
+                avisar((data && data.error) || 'No se pudo agendar', 'error');
+                return;
+            }
+            avisar('Cita creada y cliente avisado');
+            cerrarModal();
+            await recargar();
+        });
+    }
+
+    async function _marcarSolicitud(id, estado) {
+        const { error } = await db.from('taller_solicitudes_hora').update({ estado }).eq('id', id);
+        if (error) { avisar('No se pudo actualizar', 'error'); return; }
+        avisar(estado === 'descartada' ? 'Solicitud descartada' : 'Marcada como contactada');
+        await recargar();
+    }
+
     // ── Render ────────────────────────────────────────────────────
     function _render() {
         _renderKpis();
+        _renderSolicitudes();
         if (_bahias.length === 0) { _renderSinBahias(); return; }
         if (_vista === 'lista') _renderLista();
         else _renderTablero();

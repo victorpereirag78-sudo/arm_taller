@@ -8,6 +8,7 @@ const ModuloVehiculos = (() => {
 
     let _vehiculos = [];
     let _clientes  = [];
+    let _vinculos  = {};   // taller_vehiculo_id → vínculo Mi Vehículo (el más reciente)
     let _editando  = null;
 
     // ── Init ──────────────────────────────────────────────────────
@@ -49,10 +50,28 @@ const ModuloVehiculos = (() => {
             if (cRes.error) throw cRes.error;
             _vehiculos = vRes.data || [];
             _clientes  = cRes.data || [];
+            await _cargarVinculos(eid);
             _renderLista();
         } catch (err) {
             console.error('[Vehículos] cargar:', err);
             avisar('Error cargando vehículos', 'error');
+        }
+    }
+
+    /** Vínculos con Mi Vehículo (el más reciente por vehículo). Si la
+        vista aún no existe en la base, el módulo sigue funcionando. */
+    async function _cargarVinculos(eid) {
+        _vinculos = {};
+        try {
+            const { data, error } = await db.from('v_taller_vinculos')
+                .select('*').eq('empresa_id', eid)
+                .order('created_at', { ascending: false });
+            if (error) { console.warn('[Vehículos] vínculos:', error); return; }
+            (data || []).forEach(v => {
+                if (!_vinculos[v.taller_vehiculo_id]) _vinculos[v.taller_vehiculo_id] = v;
+            });
+        } catch (err) {
+            console.warn('[Vehículos] vínculos:', err);
         }
     }
 
@@ -94,8 +113,12 @@ const ModuloVehiculos = (() => {
                     <td>${v.anio || '—'}</td>
                     <td>${esc(v.taller_clientes?.nombre) || '<span style="color:var(--text-muted)">Sin dueño</span>'}</td>
                     <td style="font-family:var(--font-mono)">${v.kilometraje ? v.kilometraje.toLocaleString('es-CL') + ' km' : '—'}</td>
-                    <td><span class="tll-badge ${v.activo ? 'lista' : 'anulada'}">${v.activo ? 'activo' : 'inactivo'}</span></td>
+                    <td>
+                        <span class="tll-badge ${v.activo ? 'lista' : 'anulada'}">${v.activo ? 'activo' : 'inactivo'}</span>
+                        ${_badgeMV(_vinculos[v.id])}
+                    </td>
                     <td style="text-align:right;white-space:nowrap">
+                        <button class="tll-btn tll-btn--ghost veh-mv" data-id="${v.id}">Mi Vehículo</button>
                         <button class="tll-btn tll-btn--ghost veh-historial" data-id="${v.id}">Historial</button>
                         <button class="tll-btn tll-btn--ghost veh-editar" data-id="${v.id}">Editar</button>
                     </td>
@@ -110,6 +133,23 @@ const ModuloVehiculos = (() => {
         cont.querySelectorAll('.veh-historial').forEach(btn =>
             btn.addEventListener('click', () =>
                 _verHistorial(_vehiculos.find(v => v.id === btn.dataset.id))));
+
+        cont.querySelectorAll('.veh-mv').forEach(btn =>
+            btn.addEventListener('click', () =>
+                _miVehiculo(_vehiculos.find(v => v.id === btn.dataset.id))));
+    }
+
+    /** Etiqueta del estado del vínculo con Mi Vehículo para la lista. */
+    function _badgeMV(vin) {
+        if (!vin) return '';
+        const M = {
+            activo:    ['aprobada',  '🔗 Mi Vehículo'],
+            pendiente: ['diagnostico', '⏳ invitación enviada'],
+            revocado:  ['anulada',   'vínculo revocado'],
+            rechazado: ['anulada',   'invitación rechazada']
+        };
+        const e = M[vin.estado];
+        return e ? ` <span class="tll-badge ${e[0]}">${e[1]}</span>` : '';
     }
 
     // ── Formulario ────────────────────────────────────────────────
@@ -278,7 +318,7 @@ const ModuloVehiculos = (() => {
                         <td>${fmtFecha(o.fecha_ingreso)}</td>
                         <td style="font-family:var(--font-mono)">${o.kilometraje_ingreso ? o.kilometraje_ingreso.toLocaleString('es-CL') : '—'}</td>
                         <td>${esc(o.motivo_ingreso) || '—'}</td>
-                        <td><span class="tll-badge ${o.estado}">${o.estado}</span></td>
+                        <td><span class="tll-badge ${otEstadoClase(o.estado)}">${esc(otEstadoLabel(o.estado))}</span></td>
                         <td style="font-family:var(--font-mono)">${fmtCLP(o.total)}</td>
                     </tr>`).join('')}
                 </tbody>
@@ -288,6 +328,142 @@ const ModuloVehiculos = (() => {
             document.getElementById('veh-hist-body').innerHTML =
                 `<div class="placeholder-text">Error cargando el historial.</div>`;
         }
+    }
+
+    // ── Vínculo con Mi Vehículo ──────────────────────────────────
+    async function _miVehiculo(vehiculo) {
+        abrirModal(`
+        <div class="tll-modal-header">
+            <h3>Mi Vehículo · ${esc(vehiculo.patente)}
+                <span style="color:var(--text-secondary);font-weight:400;font-size:0.85rem">
+                    ${esc([vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' '))}</span></h3>
+            <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+        <div id="mv-body"><div class="placeholder-text">Cargando…</div></div>`, '520px');
+
+        await _mvRender(vehiculo);
+    }
+
+    async function _mvRender(vehiculo) {
+        const body = document.getElementById('mv-body');
+        if (!body) return;
+
+        let vin = null;
+        try {
+            const { data } = await db.from('v_taller_vinculos').select('*')
+                .eq('taller_vehiculo_id', vehiculo.id)
+                .order('created_at', { ascending: false }).limit(1);
+            vin = data?.[0] || null;
+        } catch (err) {
+            body.innerHTML = `<div class="placeholder-text">No se pudo consultar el vínculo. ¿Aplicaste sql/18 y sql/19?</div>`;
+            return;
+        }
+
+        // ── Vinculado ──────────────────────────────────────────────
+        if (vin && vin.estado === 'activo') {
+            body.innerHTML = `
+                <p>Este vehículo está <strong>vinculado a Mi Vehículo</strong>.</p>
+                <div class="tll-form-grid" style="margin:0.5rem 0 1rem">
+                    <div class="tll-field"><label>Desde</label><div>${fmtFecha(vin.fecha_vinculacion)}</div></div>
+                    <div class="tll-field"><label>Autorizado por</label><div>${esc(vin.autorizado_por) || '—'}</div></div>
+                </div>
+                <p style="color:var(--text-secondary);font-size:0.85rem">
+                    El cliente ve el estado de sus órdenes, sus presupuestos y su historial.
+                    Al revocar, deja de recibir novedades de este vehículo.</p>
+                <div class="tll-modal-footer">
+                    <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>
+                    <button class="tll-btn tll-btn--danger" id="mv-revocar">Revocar vínculo</button>
+                </div>`;
+            document.getElementById('mv-revocar').addEventListener('click', async () => {
+                if (!confirm('¿Revocar el vínculo con Mi Vehículo para este vehículo?')) return;
+                const { data, error } = await db.rpc('fn_taller_vinculo_revocar', {
+                    p_vinculo_id: vin.id,
+                    p_empresa_id: window.appData.usuario.empresa_id,
+                    p_por: window.appData.usuario.rut
+                });
+                if (error || !data?.ok) {
+                    avisar((data && data.error) || 'No se pudo revocar', 'error'); return;
+                }
+                avisar('Vínculo revocado');
+                await _mvRender(vehiculo);
+                recargar();
+            });
+            return;
+        }
+
+        // ── Invitación pendiente ───────────────────────────────────
+        if (vin && vin.estado === 'pendiente') {
+            _mvPintarInvitacion(body, vehiculo, vin.token_invitacion, vin.invitacion_expira_at, vin.id);
+            return;
+        }
+
+        // ── Sin vínculo (o revocado/rechazado) ─────────────────────
+        body.innerHTML = `
+            <p>Este vehículo <strong>no está vinculado</strong> a Mi Vehículo${
+                vin ? ` (última invitación: ${esc(vin.estado)})` : ''}.</p>
+            <p style="color:var(--text-secondary);font-size:0.85rem">
+                Genera una invitación y compártela con el cliente. Al aceptarla desde
+                Mi Vehículo, podrá seguir el estado de sus órdenes y aprobar presupuestos.</p>
+            <div class="tll-modal-footer">
+                <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>
+                <button class="tll-btn tll-btn--primary" id="mv-invitar">Generar invitación</button>
+            </div>`;
+        document.getElementById('mv-invitar').addEventListener('click', async () => {
+            const { data, error } = await db.rpc('fn_taller_vinculo_invitar', {
+                p_empresa_id: window.appData.usuario.empresa_id,
+                p_taller_vehiculo_id: vehiculo.id,
+                p_usuario: window.appData.usuario.rut
+            });
+            if (error || !data?.ok) {
+                avisar((data && data.error) || 'No se pudo generar la invitación', 'error'); return;
+            }
+            _mvPintarInvitacion(body, vehiculo, data.token, data.expira_at, data.vinculo_id);
+            recargar();
+        });
+    }
+
+    function _mvPintarInvitacion(body, vehiculo, token, expira, vinculoId) {
+        const link = vinculoLink(token);
+        body.innerHTML = `
+            <p style="color:var(--text-secondary);font-size:0.85rem">
+                El cliente abre <strong>Mi Vehículo</strong>, va a “Vincular con mi taller”
+                y escanea este código (o ingresa el código de abajo).</p>
+            <div id="mv-qr" style="display:flex;justify-content:center;padding:1rem;background:#fff;border-radius:var(--radius-sm);margin:0.5rem 0"></div>
+            <div class="tll-field">
+                <label>Código de vinculación</label>
+                <input class="tll-input" id="mv-token" readonly value="${esc(token)}"
+                       style="font-family:var(--font-mono);font-size:0.8rem" onclick="this.select()">
+            </div>
+            <p style="color:var(--text-muted);font-size:0.78rem">
+                Vence el ${fmtFecha(expira)}. <span id="mv-link" style="word-break:break-all">${esc(link)}</span></p>
+            <div class="tll-modal-footer">
+                <button class="tll-btn tll-btn--ghost" id="mv-copiar">Copiar enlace</button>
+                <div class="tll-toolbar-sep"></div>
+                <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>
+                <button class="tll-btn tll-btn--danger" id="mv-cancelar">Cancelar invitación</button>
+            </div>`;
+
+        const cont = document.getElementById('mv-qr');
+        if (typeof QRCode === 'function') {
+            new QRCode(cont, { text: link, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+        } else {
+            cont.innerHTML = `<span style="color:#888;font-size:0.8rem">Código QR no disponible — usa el código de abajo</span>`;
+        }
+
+        document.getElementById('mv-copiar').addEventListener('click', () => {
+            navigator.clipboard?.writeText(link).then(
+                () => avisar('Enlace copiado'),
+                () => avisar('No se pudo copiar', 'error'));
+        });
+        document.getElementById('mv-cancelar').addEventListener('click', async () => {
+            if (!confirm('¿Cancelar esta invitación? El código dejará de servir.')) return;
+            const { error } = await db.from('taller_vehiculo_vinculo')
+                .update({ estado: 'rechazado' }).eq('id', vinculoId);
+            if (error) { avisar('No se pudo cancelar', 'error'); return; }
+            avisar('Invitación cancelada');
+            await _mvRender(vehiculo);
+            recargar();
+        });
     }
 
     return { init, recargar };

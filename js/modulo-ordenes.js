@@ -1,7 +1,11 @@
 // ================================================================
 // modulo-ordenes.js — Órdenes de trabajo del taller
-// Flujo: recepcion → diagnostico → presupuesto → aprobada →
-//        reparacion → lista → entregada (+ anulada)
+// Flujo (12 estados): recepcion → diagnostico → diagnostico_terminado
+//   → presupuesto → aprobada/rechazado → esperando_repuestos
+//   → reparacion → trabajo_terminado → lista → entregada (+ anulada)
+// Los estados y sus transiciones se leen de la base
+// (taller_ot_estados / taller_ot_transiciones, ver sql/20); si no
+// están, se usa el fallback de config.js.
 // Correlativo vía RPC fn_taller_siguiente_numero.
 // Repuestos descuentan/devuelven stock SOLO vía RPC (FOR UPDATE).
 // ================================================================
@@ -13,14 +17,53 @@ const ModuloOrdenes = (() => {
     let _vehiculos = [];
     let _repuestos = [];
     let _empleados = [];
+    let _estados      = [];      // [{codigo, etiqueta, posicion, ...}]
+    let _transiciones = null;    // { desde: [hasta, ...] }  o null → fallback
     let _catalogosListos = false;
     let _ordenAbierta = null;   // orden en el modal de detalle
     let _filtroEstado = 'activas';
+
+    // ── Estados y transiciones (base → fallback config.js) ────────
+    async function _cargarEstados() {
+        if (_estados.length) return;
+        try {
+            const [eRes, tRes] = await Promise.all([
+                db.from('taller_ot_estados').select('*').eq('activo', true).order('posicion'),
+                db.from('taller_ot_transiciones').select('desde, hasta')
+            ]);
+            if (!eRes.error && eRes.data?.length) {
+                _estados = eRes.data;
+            }
+            if (!tRes.error && tRes.data?.length) {
+                _transiciones = {};
+                tRes.data.forEach(({ desde, hasta }) => {
+                    (_transiciones[desde] = _transiciones[desde] || []).push(hasta);
+                });
+            }
+        } catch (err) {
+            console.warn('[Órdenes] estados desde la base:', err);
+        }
+        if (!_estados.length) {
+            _estados = OT_ESTADOS.map((codigo, i) => ({
+                codigo, etiqueta: otEstadoLabel(codigo), posicion: (i + 1) * 10
+            }));
+        }
+    }
+
+    function _estadoOpciones(seleccionado, filtro) {
+        return _estados
+            .filter(e => !filtro || filtro(e.codigo))
+            .map(e => `<option value="${e.codigo}" ${e.codigo === seleccionado ? 'selected' : ''}>`
+                    + `${esc(e.etiqueta)}</option>`)
+            .join('');
+    }
 
     // ── Init ──────────────────────────────────────────────────────
     async function init() {
         const cont = document.getElementById('contenido-ordenes');
         if (!cont) return;
+
+        await _cargarEstados();
 
         cont.innerHTML = `
             <div class="tll-toolbar">
@@ -28,7 +71,7 @@ const ModuloOrdenes = (() => {
                 <select class="tll-select" id="ot-filtro" style="max-width:190px">
                     <option value="activas">En curso</option>
                     <option value="todas">Todas</option>
-                    ${OT_ESTADOS.map(e => `<option value="${e}">${e}</option>`).join('')}
+                    ${_estados.map(e => `<option value="${e.codigo}">${esc(e.etiqueta)}</option>`).join('')}
                 </select>
                 <input class="tll-input" id="ot-buscar" placeholder="Buscar por N°, patente o cliente…">
                 <div class="tll-toolbar-sep"></div>
@@ -127,7 +170,7 @@ const ModuloOrdenes = (() => {
                     <td style="font-family:var(--font-mono)">${esc(o.taller_vehiculos?.patente) || '—'}</td>
                     <td>${esc(o.taller_clientes?.nombre) || '—'}</td>
                     <td>${esc(o.motivo_ingreso) || '—'}</td>
-                    <td><span class="tll-badge ${esc(o.estado)}">${esc(o.estado)}</span></td>
+                    <td><span class="tll-badge ${otEstadoClase(o.estado)}">${esc(otEstadoLabel(o.estado))}</span></td>
                     <td>${fmtFecha(o.fecha_ingreso)}</td>
                     <td style="font-family:var(--font-mono)">${fmtCLP(o.total)}</td>
                     <td style="text-align:right">
@@ -285,7 +328,7 @@ const ModuloOrdenes = (() => {
         abrirModal(`
         <div class="tll-modal-header">
             <h3>OT N° ${esc(orden.numero)}
-                <span class="tll-badge ${esc(orden.estado)}" style="margin-left:0.5rem">${esc(orden.estado)}</span></h3>
+                <span class="tll-badge ${otEstadoClase(orden.estado)}" style="margin-left:0.5rem">${esc(otEstadoLabel(orden.estado))}</span></h3>
             <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
         </div>
 
@@ -379,11 +422,15 @@ const ModuloOrdenes = (() => {
 
         <div class="tll-ot-totales" id="ot-totales"></div>
 
+        <details class="tll-ot-actividad" style="margin-top:0.75rem">
+            <summary style="cursor:pointer;color:var(--text-secondary);font-size:0.85rem">Actividad y avisos al cliente</summary>
+            <div id="ot-actividad" style="margin-top:0.5rem"><span style="color:var(--text-muted);font-size:0.8rem">Cargando…</span></div>
+        </details>
+
         <div class="tll-modal-footer">
             ${!cerrada ? `
-            <select class="tll-select" id="ot-d-estado" style="max-width:190px">
-                ${OT_ESTADOS.filter(e => _transicionValida(orden.estado, e))
-                    .map(e => `<option value="${e}" ${orden.estado === e ? 'selected' : ''}>${e}</option>`).join('')}
+            <select class="tll-select" id="ot-d-estado" style="max-width:210px">
+                ${_estadoOpciones(orden.estado, e => _transicionValida(orden.estado, e))}
             </select>
             <div class="tll-toolbar-sep"></div>
             <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>
@@ -392,6 +439,7 @@ const ModuloOrdenes = (() => {
         </div>`, '760px');
 
         await _cargarItems();
+        _cargarActividad(orden.id);
 
         if (!cerrada) {
             // Alternar repuesto / mano de obra
@@ -411,6 +459,52 @@ const ModuloOrdenes = (() => {
 
             document.getElementById('ot-i-agregar').addEventListener('click', _agregarItem);
             document.getElementById('ot-d-guardar').addEventListener('click', _guardarDetalle);
+        }
+    }
+
+    /** Línea de tiempo de estados + avisos enviados al cliente. Silencioso
+        si faltan los scripts SQL de la integración. */
+    async function _cargarActividad(ordenId) {
+        const cont = document.getElementById('ot-actividad');
+        if (!cont) return;
+        try {
+            const [tl, nt] = await Promise.all([
+                db.from('v_taller_ot_timeline').select('estado_nuevo, estado_etiqueta, ts, origen')
+                    .eq('orden_id', ordenId).order('ts'),
+                db.from('taller_notificacion_eventos')
+                    .select('titulo, creado_at, taller_notificaciones(canal, estado)')
+                    .eq('orden_id', ordenId).order('creado_at')
+            ]);
+            if (tl.error && nt.error) { cont.innerHTML = ''; return; }
+
+            const filas = [];
+            (tl.data || []).forEach(h => filas.push({
+                t: h.ts,
+                txt: `${esc(h.estado_etiqueta || h.estado_nuevo)}${h.origen && h.origen !== 'sistema' ? ' · ' + esc(h.origen) : ''}`,
+                tipo: 'estado'
+            }));
+            (nt.data || []).forEach(e => {
+                const canales = (e.taller_notificaciones || [])
+                    .map(n => `${n.canal === 'mi_vehiculo' ? 'Mi Vehículo' : n.canal}${n.estado !== 'pendiente' ? ' (' + n.estado + ')' : ''}`)
+                    .join(', ');
+                filas.push({
+                    t: e.creado_at,
+                    txt: `📣 ${esc(e.titulo)}${canales ? ' → ' + esc(canales) : ' → sin canal'}`,
+                    tipo: 'aviso'
+                });
+            });
+            filas.sort((a, b) => new Date(a.t) - new Date(b.t));
+
+            cont.innerHTML = filas.length === 0
+                ? '<span style="color:var(--text-muted);font-size:0.8rem">Sin actividad registrada.</span>'
+                : `<ul style="list-style:none;padding:0;margin:0;font-size:0.82rem;line-height:1.6">
+                    ${filas.map(f => `<li>
+                        <span style="color:var(--text-muted);font-family:var(--font-mono)">${fmtFecha(f.t)}</span>
+                        · ${f.txt}</li>`).join('')}
+                   </ul>`;
+        } catch (err) {
+            console.warn('[Órdenes] actividad:', err);
+            cont.innerHTML = '';
         }
     }
 
@@ -655,7 +749,9 @@ const ModuloOrdenes = (() => {
         } catch (err) {
             console.error('[Órdenes] guardar:', err);
             btn.disabled = false;
-            avisar('Error al guardar la orden', 'error');
+            avisar(/transici[oó]n de ot/i.test(err?.message || '')
+                ? err.message
+                : 'Error al guardar la orden', 'error');
         }
     }
 
@@ -686,28 +782,21 @@ const ModuloOrdenes = (() => {
     }
 
     // ── Flujo de estados permitido ────────────────────────────────
-    // Se puede avanzar, retroceder un paso o anular; no saltar de
-    // 'recepcion' a 'entregada' sin pasar por el trabajo y el cobro.
-    const OT_TRANSICIONES = {
-        recepcion:   ['diagnostico', 'presupuesto', 'reparacion', 'anulada'],
-        diagnostico: ['presupuesto', 'aprobada', 'reparacion', 'anulada'],
-        presupuesto: ['diagnostico', 'aprobada', 'anulada'],
-        aprobada:    ['reparacion', 'presupuesto', 'anulada'],
-        reparacion:  ['lista', 'aprobada', 'anulada'],
-        lista:       ['entregada', 'reparacion', 'anulada'],
-        entregada:   [],
-        anulada:     []
-    };
-
+    // El grafo vive en taller_ot_transiciones (sql/20). Si no cargó,
+    // se usa OT_TRANSICIONES_DEFAULT de config.js. La base lo revalida
+    // igual con un trigger, esto es solo para armar el menú.
     function _transicionValida(actual, nuevo) {
         if (actual === nuevo) return true;
-        return (OT_TRANSICIONES[actual] || []).includes(nuevo);
+        const grafo = _transiciones || OT_TRANSICIONES_DEFAULT;
+        return (grafo[actual] || []).includes(nuevo);
     }
 
     // ── Abrir una orden por id (usado desde Recepción) ────────────
     async function abrirPorId(ordenId) {
         try {
             const eid = window.appData.usuario.empresa_id;
+
+            await _cargarEstados();
 
             // Asegurar catálogos si el panel Órdenes aún no se abrió.
             // Incluye empleados: sin ellos el selector de mecánico no se

@@ -179,6 +179,66 @@ const ModuloTaller = (() => {
                 </div>
             </div>
 
+            <div class="tll-rep-card" style="margin-top:1rem">
+                <h3>Perfil público · Directorio de Mi Vehículo</h3>
+                <p class="tll-rep-nota" style="margin-top:0">
+                    Si publicas, tu taller aparece en “Talleres ARM” dentro de la app Mi Vehículo,
+                    donde los propietarios pueden encontrarte y pedir hora.</p>
+                <div class="tll-form-grid" style="margin-top:0.6rem">
+                    <div class="tll-field">
+                        <label>
+                            <input type="checkbox" id="tll-f-publicado" ${_config?.publicado ? 'checked' : ''}>
+                            Publicar en el directorio
+                        </label>
+                    </div>
+                    <div class="tll-field">
+                        <label>WhatsApp de contacto</label>
+                        <input class="tll-input" id="tll-f-whatsapp" placeholder="+56 9 …" value="${esc(_config?.whatsapp || '')}">
+                    </div>
+                    <div class="tll-field tll-field--full">
+                        <label>Descripción breve</label>
+                        <input class="tll-input" id="tll-f-descripcion" maxlength="200"
+                               placeholder="Servicio automotriz multimarca, atención el mismo día…"
+                               value="${esc(_config?.descripcion || '')}">
+                    </div>
+                    <div class="tll-field tll-field--full">
+                        <label>Horario</label>
+                        <input class="tll-input" id="tll-f-horario"
+                               placeholder="Lun a Vie 9:00–18:30 · Sáb 9:00–13:00"
+                               value="${esc(_config?.horario || '')}">
+                    </div>
+                    <div class="tll-field">
+                        <label>Latitud</label>
+                        <input class="tll-input" id="tll-f-lat" type="number" step="any"
+                               placeholder="-33.45" value="${_config?.lat ?? ''}">
+                    </div>
+                    <div class="tll-field">
+                        <label>Longitud</label>
+                        <input class="tll-input" id="tll-f-lng" type="number" step="any"
+                               placeholder="-70.66" value="${_config?.lng ?? ''}">
+                        <span class="tll-field-msg">Para ordenar por cercanía. Cópialas de Google Maps.</span>
+                    </div>
+                    <div class="tll-field tll-field--full">
+                        <label>Servicios (separados por coma)</label>
+                        <input class="tll-input" id="tll-f-servicios"
+                               placeholder="Mantención general, Frenos, Cambio de aceite"
+                               value="${esc((_config?.servicios || []).join(', '))}">
+                    </div>
+                    <div class="tll-field tll-field--full">
+                        <label>Especialidades (separadas por coma)</label>
+                        <input class="tll-input" id="tll-f-especialidades"
+                               placeholder="Autos, Motos, Diésel"
+                               value="${esc((_config?.especialidades || []).join(', '))}">
+                    </div>
+                    <div class="tll-field tll-field--full">
+                        <label>Marcas que atiende (separadas por coma)</label>
+                        <input class="tll-input" id="tll-f-marcas"
+                               placeholder="Toyota, Peugeot, Hyundai"
+                               value="${esc((_config?.marcas || []).join(', '))}">
+                    </div>
+                </div>
+            </div>
+
             <div class="tll-toolbar" style="margin-top:1.2rem">
                 <button class="tll-btn tll-btn--primary" id="tll-guardar">Guardar datos del taller</button>
                 <button class="tll-btn tll-btn--ghost" id="tll-recargar">↻ Descartar cambios</button>
@@ -189,6 +249,17 @@ const ModuloTaller = (() => {
 
         document.getElementById('tll-guardar').addEventListener('click', _guardarMiTaller);
         document.getElementById('tll-recargar').addEventListener('click', recargar);
+    }
+
+    /** "a, b ,c" → ['a','b','c'] (sin vacíos ni duplicados). */
+    function _listaDesde(id) {
+        const vistos = new Set();
+        return (document.getElementById(id)?.value || '')
+            .split(',').map(s => s.trim()).filter(s => {
+                if (!s || vistos.has(s.toLowerCase())) return false;
+                vistos.add(s.toLowerCase());
+                return true;
+            });
     }
 
     async function _guardarMiTaller() {
@@ -227,6 +298,15 @@ const ModuloTaller = (() => {
                 dias_validez_presupuesto: Number(document.getElementById('tll-f-validez').value) || 15,
                 condiciones_presupuesto:  document.getElementById('tll-f-condiciones').value.trim() || null,
                 pie_documentos:           document.getElementById('tll-f-pie').value.trim() || null,
+                publicado:      document.getElementById('tll-f-publicado').checked,
+                whatsapp:       document.getElementById('tll-f-whatsapp').value.trim() || null,
+                descripcion:    document.getElementById('tll-f-descripcion').value.trim() || null,
+                horario:        document.getElementById('tll-f-horario').value.trim() || null,
+                lat:            parseFloat(document.getElementById('tll-f-lat').value) || null,
+                lng:            parseFloat(document.getElementById('tll-f-lng').value) || null,
+                servicios:      _listaDesde('tll-f-servicios'),
+                especialidades: _listaDesde('tll-f-especialidades'),
+                marcas:         _listaDesde('tll-f-marcas'),
                 updated_at: new Date().toISOString()
             }, { onConflict: 'empresa_id' });
             if (e2) throw e2;

@@ -90,7 +90,7 @@ const ModuloDashboard = (() => {
                         <td style="font-family:var(--font-mono)">${esc(o.taller_vehiculos?.patente) || '—'}</td>
                         <td>${esc([o.taller_vehiculos?.marca, o.taller_vehiculos?.modelo].filter(Boolean).join(' ')) || '—'}</td>
                         <td>${esc(o.motivo_ingreso) || '—'}</td>
-                        <td><span class="tll-badge ${esc(o.estado)}">${esc(o.estado)}</span></td>
+                        <td><span class="tll-badge ${otEstadoClase(o.estado)}">${esc(otEstadoLabel(o.estado))}</span></td>
                         <td>${fmtFecha(o.fecha_ingreso)}</td>
                     </tr>`).join('')}
                 </tbody>

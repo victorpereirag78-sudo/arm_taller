@@ -131,6 +131,19 @@ const ModuloClientes = (() => {
                 <label>Dirección</label>
                 <input class="tll-input" id="cli-f-direccion" value="${esc(cliente?.direccion || '')}">
             </div>
+            <div class="tll-field tll-field--full">
+                <label>Cómo avisarle (Mi Vehículo / WhatsApp)</label>
+                <select class="tll-select" id="cli-f-canal">
+                    ${[
+                        ['auto', 'Automático (Mi Vehículo si está vinculado, si no WhatsApp)'],
+                        ['mi_vehiculo', 'Solo Mi Vehículo'],
+                        ['whatsapp', 'Solo WhatsApp'],
+                        ['ambos', 'Ambos'],
+                        ['ninguno', 'No enviar avisos']
+                    ].map(([v, t]) => `<option value="${v}" ${
+                        (cliente?.canal_pref || 'auto') === v ? 'selected' : ''}>${t}</option>`).join('')}
+                </select>
+            </div>
             ${cliente ? `
             <div class="tll-field">
                 <label>Estado</label>
@@ -177,7 +190,8 @@ const ModuloClientes = (() => {
             tipo:      document.getElementById('cli-f-tipo').value,
             telefono:  document.getElementById('cli-f-telefono').value.trim() || null,
             email:     document.getElementById('cli-f-email').value.trim() || null,
-            direccion: document.getElementById('cli-f-direccion').value.trim() || null
+            direccion: document.getElementById('cli-f-direccion').value.trim() || null,
+            canal_pref: document.getElementById('cli-f-canal').value
         };
 
         const btn = document.getElementById('cli-guardar');

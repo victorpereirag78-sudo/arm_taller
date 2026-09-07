@@ -138,6 +138,8 @@ $$;
 
 drop function if exists fn_login_taller(text, text);
 
+drop function if exists fn_login_taller(text, text, integer);
+
 create function fn_login_taller(
     p_rut  text,
     p_pass text,
@@ -145,7 +147,7 @@ create function fn_login_taller(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
     v_usuario     usuarios%rowtype;
@@ -158,9 +160,17 @@ begin
         return jsonb_build_object('ok', false, 'error', v_generico);
     end if;
 
-    select * into v_usuario
-      from usuarios
-     where rut = p_rut and activo = true
+    -- Un RUT puede tener cuenta en varias empresas (ARM Universal es
+    -- multiempresa). Para entrar al taller, elegir la cuenta correcta:
+    -- una empresa tipo 'taller', o si no, arm-sur con rol admin.
+    select u.* into v_usuario
+      from usuarios u
+      join empresas e on e.id = u.empresa_id
+     where u.rut = p_rut and u.activo = true
+     order by (e.tipo = 'taller') desc,
+              (e.slug = 'arm-sur' and u.rol = 'admin') desc,
+              e.activo desc,
+              u.created_at asc
      limit 1;
 
     if not found then
@@ -169,12 +179,12 @@ begin
 
     -- ── Contraseña ──────────────────────────────────────────────
     if v_usuario.pass_hash is not null then
-        if v_usuario.pass_hash <> crypt(p_pass, v_usuario.pass_hash) then
+        if v_usuario.pass_hash <> extensions.crypt(p_pass, v_usuario.pass_hash) then
             return jsonb_build_object('ok', false, 'error', v_generico);
         end if;
     elsif v_usuario.pass is not null and v_usuario.pass = p_pass then
         update usuarios
-           set pass_hash = crypt(p_pass, gen_salt('bf', 10))
+           set pass_hash = extensions.crypt(p_pass, extensions.gen_salt('bf', 10))
          where id = v_usuario.id;
     else
         return jsonb_build_object('ok', false, 'error', v_generico);
