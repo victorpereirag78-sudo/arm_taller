@@ -77,7 +77,7 @@ create or replace function fn_es_superadmin(p_rut text, p_pass text)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions   -- pgcrypto vive en el schema extensions
 as $$
 declare v_u usuarios%rowtype;
 begin
@@ -91,7 +91,7 @@ begin
     if not found then return false; end if;
 
     if v_u.pass_hash is not null then
-        return v_u.pass_hash = crypt(p_pass, v_u.pass_hash);
+        return v_u.pass_hash = extensions.crypt(p_pass, v_u.pass_hash);
     end if;
     return v_u.pass is not null and v_u.pass = p_pass;
 end;
@@ -125,7 +125,7 @@ create or replace function fn_crear_taller(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions   -- pgcrypto vive en el schema extensions
 as $$
 declare
     v_empresa_id uuid;
@@ -164,7 +164,7 @@ begin
     returning id into v_empresa_id;
 
     insert into usuarios (empresa_id, rut, pass_hash, rol, activo)
-    values (v_empresa_id, p_usuario_rut, crypt(p_usuario_pass, gen_salt('bf', 10)), 'admin', true);
+    values (v_empresa_id, p_usuario_rut, extensions.crypt(p_usuario_pass, extensions.gen_salt('bf', 10)), 'admin', true);
 
     insert into taller_config (empresa_id) values (v_empresa_id)
     on conflict (empresa_id) do nothing;
@@ -192,7 +192,7 @@ create or replace function fn_crear_usuario_taller(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions   -- pgcrypto vive en el schema extensions
 as $$
 begin
     if not fn_es_superadmin(p_admin_rut, p_admin_pass) then
@@ -209,7 +209,7 @@ begin
     end if;
 
     insert into usuarios (empresa_id, rut, pass_hash, rol, activo, empleado_id)
-    values (p_empresa_id, p_rut, crypt(p_pass, gen_salt('bf', 10)),
+    values (p_empresa_id, p_rut, extensions.crypt(p_pass, extensions.gen_salt('bf', 10)),
             coalesce(p_rol, 'lector'), true, p_empleado_id);
 
     return jsonb_build_object('ok', true);

@@ -30,7 +30,7 @@ alter table usuarios
 -- Hashea las contraseñas que hoy están en texto plano.
 -- Se puede correr varias veces: solo toca las que faltan.
 update usuarios
-   set pass_hash = crypt(pass, gen_salt('bf', 10))
+   set pass_hash = extensions.crypt(pass, extensions.gen_salt('bf', 10))
  where pass_hash is null
    and pass is not null
    and pass <> '';
@@ -50,7 +50,7 @@ create or replace function fn_login_taller(p_rut text, p_pass text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions   -- pgcrypto vive en el schema extensions
 as $$
 declare
     v_usuario     usuarios%rowtype;
@@ -74,7 +74,7 @@ begin
 
     -- ── Verificación de contraseña ──────────────────────────────
     if v_usuario.pass_hash is not null then
-        if v_usuario.pass_hash <> crypt(p_pass, v_usuario.pass_hash) then
+        if v_usuario.pass_hash <> extensions.crypt(p_pass, v_usuario.pass_hash) then
             return jsonb_build_object('ok', false, 'error', v_generico);
         end if;
 
@@ -83,7 +83,7 @@ begin
     -- puede borrar cuando 'pass' ya no exista (ver PASO 3).
     elsif v_usuario.pass is not null and v_usuario.pass = p_pass then
         update usuarios
-           set pass_hash = crypt(p_pass, gen_salt('bf', 10))
+           set pass_hash = extensions.crypt(p_pass, extensions.gen_salt('bf', 10))
          where id = v_usuario.id;
 
     else
@@ -144,7 +144,7 @@ create or replace function fn_cambiar_pass_taller(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions   -- pgcrypto vive en el schema extensions
 as $$
 declare
     v_usuario usuarios%rowtype;
@@ -160,7 +160,7 @@ begin
     end if;
 
     if v_usuario.pass_hash is not null then
-        if v_usuario.pass_hash <> crypt(p_pass_actual, v_usuario.pass_hash) then
+        if v_usuario.pass_hash <> extensions.crypt(p_pass_actual, v_usuario.pass_hash) then
             return jsonb_build_object('ok', false, 'error', 'La contraseña actual no coincide.');
         end if;
     elsif v_usuario.pass is distinct from p_pass_actual then
@@ -168,7 +168,7 @@ begin
     end if;
 
     update usuarios
-       set pass_hash = crypt(p_pass_nueva, gen_salt('bf', 10)),
+       set pass_hash = extensions.crypt(p_pass_nueva, extensions.gen_salt('bf', 10)),
            pass      = null
      where id = p_usuario_id;
 

@@ -259,7 +259,7 @@ begin
 
     -- Verificar la contraseña
     if v_u.pass_hash is not null then
-        v_ok := (v_u.pass_hash = crypt(p_pass, v_u.pass_hash));
+        v_ok := (v_u.pass_hash = extensions.crypt(p_pass, v_u.pass_hash));
     else
         v_ok := (v_u.pass is not null and v_u.pass = p_pass);
     end if;
@@ -306,7 +306,7 @@ begin
     end if;
 
     insert into usuarios (empresa_id, rut, pass_hash, rol, activo, empleado_id)
-    values (p_empresa_id, p_rut, crypt(p_pass, gen_salt('bf', 10)),
+    values (p_empresa_id, p_rut, extensions.crypt(p_pass, extensions.gen_salt('bf', 10)),
             coalesce(p_rol, 'lector'), true, p_empleado_id);
 
     return jsonb_build_object('ok', true);
@@ -424,7 +424,7 @@ begin
     end if;
 
     update usuarios
-       set pass_hash = crypt(p_pass_nueva, gen_salt('bf', 10)),
+       set pass_hash = extensions.crypt(p_pass_nueva, extensions.gen_salt('bf', 10)),
            pass      = null
      where id = p_usuario_id;
 

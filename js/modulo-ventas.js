@@ -257,7 +257,7 @@ const ModuloVentas = (() => {
             </div>
             <div class="tll-field">
                 <label>Cantidad</label>
-                <input class="tll-input" id="ven-s-cant" type="number" min="0.5" step="0.5" value="1">
+                <input class="tll-input" id="ven-s-cant" type="number" min="1" step="1" value="1">
             </div>
             <div class="tll-field">
                 <label>Precio unitario</label>
@@ -272,8 +272,8 @@ const ModuloVentas = (() => {
         document.getElementById('ven-s-ok').addEventListener('click', () => {
             const desc = document.getElementById('ven-s-desc').value.trim();
             if (!desc) { avisar('Describe el servicio', 'error'); return; }
-            const cant = _num(document.getElementById('ven-s-cant').value);
-            if (cant <= 0) { avisar('Cantidad inválida', 'error'); return; }
+            const cant = Math.floor(_num(document.getElementById('ven-s-cant').value));
+            if (cant < 1) { avisar('La cantidad debe ser al menos 1 unidad', 'error'); return; }
 
             _carro.push({
                 tipo: 'servicio',
@@ -315,7 +315,7 @@ const ModuloVentas = (() => {
                         ${i.codigo ? `<div style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono)">${esc(i.codigo)}</div>` : ''}</td>
                     <td style="text-align:center">
                         <input class="tll-input ven-cant" data-idx="${idx}" type="number"
-                               min="0.5" step="0.5" value="${i.cantidad}"
+                               min="1" step="1" value="${i.cantidad}"
                                style="width:80px;text-align:center;padding:0.3rem"></td>
                     <td style="text-align:right">
                         <input class="tll-input ven-precio" data-idx="${idx}" type="number"
@@ -345,11 +345,12 @@ const ModuloVentas = (() => {
         const item = _carro[idx];
         if (!item) return;
 
+        cantidad = Math.floor(_num(cantidad));   // ventas: solo unidades completas
         if (cantidad <= 0) { _carro.splice(idx, 1); _renderCarro(); return; }
 
         if (item.tipo === 'repuesto' && cantidad > _num(item.stock)) {
             avisar(`Solo hay ${_fmtCant(item.stock)} de ${item.descripcion}`, 'error');
-            cantidad = _num(item.stock);
+            cantidad = Math.floor(_num(item.stock));
         }
         item.cantidad = cantidad;
         _renderCarro();
