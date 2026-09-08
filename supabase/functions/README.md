@@ -21,7 +21,7 @@ supabase functions deploy taller-whatsapp-webhook --project-ref rhggndoqjnlzmfxs
 | `WHATSAPP_TOKEN` | token permanente de la app de Meta (WhatsApp Cloud API) |
 | `WHATSAPP_PHONE_ID` | id del número emisor |
 | `WHATSAPP_VERIFY_TOKEN` | string arbitrario; el mismo que se pone en el webhook de Meta |
-| `WHATSAPP_APP_SECRET` | app secret de Meta; valida la firma `X-Hub-Signature-256` del webhook entrante |
+| `WHATSAPP_APP_SECRET` | app secret de Meta; valida la firma `X-Hub-Signature-256` del webhook entrante. **Obligatorio**: sin él, `taller-whatsapp-webhook` responde 200 pero no procesa ningún mensaje (falla cerrado, no se puede aprobar presupuestos sin autenticar) |
 
 `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase solo.
 
@@ -46,8 +46,14 @@ WhatsApp → Configuration → Webhook:
 
 ## Sin credenciales de WhatsApp todavía
 
-- El dispatcher marca cada notificación de WhatsApp como `error` con el
-  detalle "Faltan WHATSAPP_TOKEN / WHATSAPP_PHONE_ID" y sigue. El canal
-  Mi Vehículo funciona igual (no pasa por Edge Functions).
+Ambas funciones se pueden desplegar ya; quedan inertes hasta cargar los secrets:
+
+- `taller-notification-dispatch`: sin `DISPATCH_KEY` responde 401 a todo (y el
+  cron aún no existe). Con `DISPATCH_KEY` pero sin `WHATSAPP_TOKEN` /
+  `WHATSAPP_PHONE_ID`, marca cada notificación de WhatsApp como `error`
+  ("Faltan WHATSAPP_TOKEN / WHATSAPP_PHONE_ID") y sigue. El canal Mi Vehículo
+  funciona igual (no pasa por Edge Functions).
+- `taller-whatsapp-webhook`: sin `WHATSAPP_APP_SECRET` responde 200 pero no
+  procesa nada. Sin `WHATSAPP_VERIFY_TOKEN` la verificación GET de Meta da 403.
 - Al cargar los secrets, `intento` vuelve a permitir el reenvío hasta 5
   veces (ver `fn_taller_notif_pendientes_whatsapp`).

@@ -15,18 +15,19 @@
 // Variables de entorno:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //   WHATSAPP_VERIFY_TOKEN   string arbitrario, el mismo que pones en Meta
-//   WHATSAPP_APP_SECRET     app secret de Meta — valida la firma X-Hub-Signature-256
+//   WHATSAPP_APP_SECRET     app secret de Meta — OBLIGATORIO: sin él la función
+//                           no procesa ningún mensaje entrante (falla cerrado)
 //   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID   para contestar la confirmación
 // ---------------------------------------------------------------------
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 /** Verifica que el POST viene de Meta (HMAC-SHA256 del body con el app secret).
- *  Meta SIEMPRE firma. Si llega una firma pero no hay secret configurado, se
- *  rechaza: no dejamos un endpoint de aprobación de presupuestos sin autenticar.
- *  Solo se salta cuando no hay firma NI secret (prueba local con curl). */
+ *  Meta SIEMPRE firma. Este endpoint aprueba/rechaza presupuestos, así que
+ *  falla cerrado: si no hay WHATSAPP_APP_SECRET configurado, NO se procesa
+ *  ningún mensaje (la función queda inerte hasta cargar el secret). */
 async function firmaValida(raw: string, firma: string | null): Promise<boolean> {
   const secret = Deno.env.get("WHATSAPP_APP_SECRET");
-  if (!secret) return !firma;             // sin secret: solo se acepta lo que no viene firmado
+  if (!secret) return false;              // sin secret no se procesa nada
   if (!firma?.startsWith("sha256=")) return false;
   const key = await crypto.subtle.importKey(
     "raw",
@@ -78,7 +79,9 @@ Deno.serve(async (req) => {
   // Meta reintenta si no recibe 200 rápido: procesamos y respondemos 200 igual.
   const raw = await req.text();
   if (!(await firmaValida(raw, req.headers.get("x-hub-signature-256")))) {
-    return new Response("bad signature", { status: 401 });
+    // Firma inválida o falta WHATSAPP_APP_SECRET. Devolvemos 200 para que Meta
+    // no reintente en bucle, pero no se procesa nada.
+    return new Response("ok", { status: 200 });
   }
   let payload: unknown;
   try {
