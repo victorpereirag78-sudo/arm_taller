@@ -183,9 +183,9 @@ const MODULOS_CATALOGO = {
     administracion: {
         nombre: 'Administración',
         icono: '⚙',
-        descripcion: 'Datos del taller, usuarios, roles, módulos y administración de talleres.',
+        descripcion: 'Datos del taller, usuarios, roles, módulos, importación de datos y administración de talleres.',
         plan: 'basico', base: true, requiere: [], estado: 'ok',
-        paneles: ['panel-taller', 'panel-usuarios', 'panel-modulos']
+        paneles: ['panel-taller', 'panel-usuarios', 'panel-modulos', 'panel-importador']
     }
 };
 
@@ -228,7 +228,7 @@ const ROL_MODULOS = {
         'panel-proveedores', 'panel-compras', 'panel-cxp', 'panel-gastos',
         'panel-empleados', 'panel-comisiones',
         'panel-reportes', 'panel-dte',
-        'panel-taller', 'panel-usuarios', 'panel-modulos'
+        'panel-taller', 'panel-usuarios', 'panel-modulos', 'panel-importador'
     ],
     'jefe_taller': [
         'panel-dashboard', 'panel-recepcion', 'panel-ordenes', 'panel-presupuestos',
@@ -298,7 +298,8 @@ const PANEL_INFO = {
     'panel-dte':          { titulo: 'Facturación',        tag: 'ventas',     label: 'SII'       },
     'panel-taller':       { titulo: 'Mi taller',          tag: 'admin',      label: 'ADMIN'     },
     'panel-usuarios':     { titulo: 'Usuarios',           tag: 'admin',      label: 'ADMIN'     },
-    'panel-modulos':      { titulo: 'Módulos',            tag: 'admin',      label: 'ADMIN'     }
+    'panel-modulos':      { titulo: 'Módulos',            tag: 'admin',      label: 'ADMIN'     },
+    'panel-importador':   { titulo: 'Importar datos',     tag: 'admin',      label: 'ADMIN'     }
 };
 
 // ── Estados de órdenes de trabajo ────────────────────────────────

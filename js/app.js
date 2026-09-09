@@ -32,7 +32,8 @@ const PANEL_ICONOS = {
     'panel-dte':       '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 8h8M8 12h8M8 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
     'panel-taller':    '<svg viewBox="0 0 24 24" fill="none"><path d="M3 21V7l9-4 9 4v14" stroke="currentColor" stroke-width="1.5"/><path d="M9 21v-6h6v6" stroke="currentColor" stroke-width="1.5"/></svg>',
     'panel-usuarios':  '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5"/></svg>',
-    'panel-modulos':   '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>'
+    'panel-modulos':   '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>',
+    'panel-importador':'<svg viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 12l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 };
 
 // ── Secciones del menú ────────────────────────────────────────────
@@ -45,7 +46,7 @@ const NAV_SECCIONES = [
     { label: 'Compras',   paneles: ['panel-proveedores', 'panel-compras', 'panel-cxp'] },
     { label: 'Personal',  paneles: ['panel-empleados', 'panel-comisiones'] },
     { label: 'Análisis',  paneles: ['panel-gastos', 'panel-reportes', 'panel-dte'] },
-    { label: 'Admin',     paneles: ['panel-taller', 'panel-usuarios', 'panel-modulos'] }
+    { label: 'Admin',     paneles: ['panel-taller', 'panel-usuarios', 'panel-modulos', 'panel-importador'] }
 ];
 
 // ── Módulos con init() propio (patrón IIFE de Universal) ─────────
@@ -72,7 +73,8 @@ const PANEL_INIT = {
     'panel-taller':    () => ModuloTaller.init(),
     'panel-cxc':       () => ModuloCxc.init(),
     'panel-usuarios':  () => ModuloUsuarios.init(),
-    'panel-modulos':   () => ModuloModulos.init()
+    'panel-modulos':   () => ModuloModulos.init(),
+    'panel-importador':() => ModuloImportador.init()
 };
 
 const _panelesIniciados = new Set();
