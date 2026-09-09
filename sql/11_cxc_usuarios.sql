@@ -247,15 +247,25 @@ create or replace function fn_admin_de_taller(
 ) returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
     v_u usuarios%rowtype;
     v_e empresas%rowtype;
     v_ok boolean;
 begin
-    select * into v_u from usuarios where rut = p_rut and activo = true limit 1;
-    if not found or v_u.rol <> 'admin' then return false; end if;
+    -- RUT multiempresa (ARM Universal): elegir la cuenta 'admin' correcta
+    -- de forma determinista — la del taller objetivo, o si no la de arm-sur.
+    -- Ver sql/33. Sin ORDER BY antes se elegía una fila cualquiera.
+    select u.* into v_u
+      from usuarios u
+      join empresas e on e.id = u.empresa_id
+     where u.rut = p_rut and u.activo = true and u.rol = 'admin'
+     order by (u.empresa_id = p_empresa_id) desc,
+              (e.slug = 'arm-sur')          desc,
+              u.created_at asc
+     limit 1;
+    if not found then return false; end if;
 
     -- Verificar la contraseña
     if v_u.pass_hash is not null then

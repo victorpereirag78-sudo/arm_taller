@@ -81,11 +81,14 @@ set search_path = public, extensions   -- pgcrypto vive en el schema extensions
 as $$
 declare v_u usuarios%rowtype;
 begin
+    -- RUT multiempresa: si hubiera más de una cuenta admin en arm-sur,
+    -- elegir siempre la misma (la más antigua). Ver sql/33.
     select u.* into v_u
       from usuarios u
       join empresas e on e.id = u.empresa_id
      where u.rut = p_rut and u.activo = true
        and u.rol = 'admin' and e.slug = 'arm-sur'
+     order by u.created_at asc
      limit 1;
 
     if not found then return false; end if;
