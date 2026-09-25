@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARM Taller — Sin conexión</title>
+    <style>
+        body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+               background:#080c18; color:#f0f4ff; font-family:system-ui,-apple-system,Segoe UI,sans-serif; text-align:center; padding:24px; }
+        .caja { max-width:340px; }
+        .ico  { width:72px; height:72px; margin:0 auto 18px; border-radius:18px; display:flex; align-items:center; justify-content:center;
+                background:linear-gradient(135deg,#4f8ef7,#1f4fc4); }
+        h1 { font-size:1.25rem; margin:0 0 8px; }
+        p  { color:#a8b8e8; line-height:1.5; margin:0 0 20px; }
+        button { background:#4f8ef7; color:#fff; border:0; border-radius:999px; padding:12px 26px; font-size:1rem; font-weight:600; cursor:pointer; }
+    </style>
+</head>
+<body>
+    <div class="caja">
+        <div class="ico">
+            <svg width="40" height="40" viewBox="0 0 24 24"><path d="M14.7 6.3a4.5 4.5 0 0 0-5.9 5.9L3 18l3 3 5.8-5.8a4.5 4.5 0 0 0 5.9-5.9l-2.9 2.9-2.1-2.1 2.9-2.9z" fill="#fff" stroke="#fff" stroke-width=".7" stroke-linejoin="round"/></svg>
+        </div>
+        <h1>Sin conexión</h1>
+        <p>ARM Taller necesita internet para mostrar tus datos. Revisa tu conexión e inténtalo de nuevo.</p>
+        <button onclick="location.reload()">Reintentar</button>
+    </div>
+</body>
+</html>
