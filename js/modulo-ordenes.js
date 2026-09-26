@@ -431,7 +431,20 @@ const ModuloOrdenes = (() => {
 
         <div class="tll-ot-totales" id="ot-totales"></div>
 
-        <details class="tll-ot-actividad" style="margin-top:0.75rem">
+        <div class="tll-ot-mensaje" style="margin-top:0.75rem">
+            <label for="ot-msg-texto" style="font-size:0.85rem;color:var(--text-secondary)">💬 Enviar mensaje al cliente</label>
+            <textarea class="tll-input" id="ot-msg-texto" rows="2" maxlength="500"
+                placeholder="Ej: Revisando encontramos las pastillas de freno gastadas. ¿Las cambiamos?"
+                style="width:100%;resize:vertical;margin-top:0.3rem"></textarea>
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.35rem">
+                <span style="flex:1;font-size:0.72rem;color:var(--text-muted)">
+                    Le llega por Mi Vehículo si tiene el vehículo vinculado, y por WhatsApp según “Cómo avisarle”.
+                </span>
+                <button class="tll-btn tll-btn--ghost" id="ot-msg-enviar">Enviar mensaje</button>
+            </div>
+        </div>
+
+        <details class="tll-ot-actividad" id="ot-actividad-wrap" style="margin-top:0.75rem">
             <summary style="cursor:pointer;color:var(--text-secondary);font-size:0.85rem">Actividad y avisos al cliente</summary>
             <div id="ot-actividad" style="margin-top:0.5rem"><span style="color:var(--text-muted);font-size:0.8rem">Cargando…</span></div>
         </details>
@@ -449,6 +462,7 @@ const ModuloOrdenes = (() => {
 
         await _cargarItems();
         _cargarActividad(orden.id);
+        document.getElementById('ot-msg-enviar').addEventListener('click', () => _enviarMensaje(orden.id));
 
         if (!cerrada) {
             // Alternar repuesto / mano de obra
@@ -471,6 +485,43 @@ const ModuloOrdenes = (() => {
         }
     }
 
+    /** Mensaje libre del taller al cliente (sql/41). Sale por los mismos
+        canales que los avisos automáticos: Mi Vehículo y/o WhatsApp. */
+    async function _enviarMensaje(ordenId) {
+        const txt = document.getElementById('ot-msg-texto');
+        const btn = document.getElementById('ot-msg-enviar');
+        const mensaje = txt.value.trim();
+        if (mensaje.length < 2) { avisar('Escribe el mensaje', 'error'); return; }
+
+        btn.disabled = true;
+        try {
+            const { data, error } = await db.rpc('fn_taller_mensaje_cliente', {
+                p_empresa_id: window.appData.usuario.empresa_id,
+                p_orden_id:   ordenId,
+                p_mensaje:    mensaje,
+                p_usuario:    window.appData.usuario.rut
+            });
+            if (error) throw error;
+            if (!data?.ok) { avisar(data?.error || 'No se pudo enviar', 'error'); return; }
+
+            const nombres = { mi_vehiculo: 'Mi Vehículo', whatsapp: 'WhatsApp', email: 'correo' };
+            const canales = (data.canales || []).map(c => nombres[c] || c);
+            if (canales.length === 0) {
+                avisar('Mensaje guardado, pero al cliente no le llega: no tiene Mi Vehículo vinculado ni teléfono (o eligió no recibir avisos).', 'error');
+            } else {
+                avisar(`Mensaje enviado por ${canales.join(' y ')}`);
+            }
+            txt.value = '';
+            document.getElementById('ot-actividad-wrap').open = true;
+            _cargarActividad(ordenId);
+        } catch (err) {
+            console.error('[Órdenes] mensaje:', err);
+            avisar('No se pudo enviar el mensaje. Revisa la consola.', 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
     /** Línea de tiempo de estados + avisos enviados al cliente. Silencioso
         si faltan los scripts SQL de la integración. */
     async function _cargarActividad(ordenId) {
@@ -481,7 +532,7 @@ const ModuloOrdenes = (() => {
                 db.from('v_taller_ot_timeline').select('estado_nuevo, estado_etiqueta, ts, origen')
                     .eq('orden_id', ordenId).order('ts'),
                 db.from('taller_notificacion_eventos')
-                    .select('titulo, creado_at, taller_notificaciones(canal, estado)')
+                    .select('tipo, titulo, detalle, creado_at, taller_notificaciones(canal, estado)')
                     .eq('orden_id', ordenId).order('creado_at')
             ]);
             if (tl.error && nt.error) { cont.innerHTML = ''; return; }
@@ -496,9 +547,12 @@ const ModuloOrdenes = (() => {
                 const canales = (e.taller_notificaciones || [])
                     .map(n => `${n.canal === 'mi_vehiculo' ? 'Mi Vehículo' : n.canal}${n.estado !== 'pendiente' ? ' (' + n.estado + ')' : ''}`)
                     .join(', ');
+                const texto = e.tipo === 'mensaje_taller'
+                    ? `💬 “${esc(e.detalle || '')}”`
+                    : `📣 ${esc(e.titulo)}`;
                 filas.push({
                     t: e.creado_at,
-                    txt: `📣 ${esc(e.titulo)}${canales ? ' → ' + esc(canales) : ' → sin canal'}`,
+                    txt: `${texto}${canales ? ' → ' + esc(canales) : ' → sin canal'}`,
                     tipo: 'aviso'
                 });
             });
