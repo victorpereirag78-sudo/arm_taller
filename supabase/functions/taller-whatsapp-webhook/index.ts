@@ -2,8 +2,9 @@
 // ---------------------------------------------------------------------
 // Recibe los mensajes entrantes de WhatsApp (Meta Cloud API).
 //   · GET  → verificación del webhook (Meta lo llama una vez al configurarlo)
-//   · POST → mensaje del cliente. Si dice APRUEBO / RECHAZO, responde el
-//            último presupuesto pendiente de ese número.
+//   · POST → mensaje del cliente. Botón "Apruebo"/"Rechazo" de la plantilla
+//            (trae el id del presupuesto) o el mensaje exacto APRUEBO /
+//            RECHAZO (responde el último pendiente de ese número).
 //
 // Configurar en Meta → WhatsApp → Configuration → Webhook:
 //   Callback URL:  https://<ref>.functions.supabase.co/taller-whatsapp-webhook
@@ -41,8 +42,49 @@ async function firmaValida(raw: string, firma: string | null): Promise<boolean> 
   return `sha256=${hex}` === firma;
 }
 
-const APRUEBA = /\b(apruebo|aprobar|aprobado|acepto|si|sí|ok|dale)\b/i;
-const RECHAZA = /\b(rechazo|rechazar|rechazado|no)\b/i;
+// Aprobar o rechazar un presupuesto es plata: solo cuenta una respuesta
+// inequívoca. El botón de la plantilla trae "APRUEBO:<id>" / "RECHAZO:<id>";
+// como texto, el mensaje tiene que ser SOLO la palabra (sin importar
+// mayúsculas, tildes ni puntuación). "no sé, ¿cuánto sale?" no rechaza nada.
+const PALABRAS_APRUEBA = new Set(["apruebo", "aprobado", "acepto", "si apruebo"]);
+const PALABRAS_RECHAZA = new Set(["rechazo", "rechazado", "no acepto", "no apruebo"]);
+
+function normalizar(s: string): string {
+  return s
+    .normalize("NFD").replace(/\p{M}/gu, "")   // sin tildes
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")                        // sin puntuación ni emojis
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Interpreta un mensaje entrante. null = no es una respuesta a presupuesto. */
+function interpretar(m: MensajeWa): { respuesta: "aprobado" | "rechazado"; presupuestoId: string | null } | null {
+  // Botón de plantilla (type "button") o botón interactivo (type "interactive").
+  const payload = m.button?.payload ?? m.interactive?.button_reply?.id ?? "";
+  const [accion, id] = payload.split(":");
+  if (accion === "APRUEBO" || accion === "RECHAZO") {
+    return {
+      respuesta: accion === "APRUEBO" ? "aprobado" : "rechazado",
+      presupuestoId: id && UUID.test(id) ? id : null,
+    };
+  }
+
+  const texto = normalizar(m.text?.body ?? m.button?.text ?? "");
+  if (PALABRAS_APRUEBA.has(texto)) return { respuesta: "aprobado", presupuestoId: null };
+  if (PALABRAS_RECHAZA.has(texto)) return { respuesta: "rechazado", presupuestoId: null };
+  return null;
+}
+
+interface MensajeWa {
+  from?: string;
+  type?: string;
+  text?: { body?: string };
+  button?: { payload?: string; text?: string };
+  interactive?: { button_reply?: { id?: string; title?: string } };
+}
 
 async function responderWhatsApp(to: string, body: string) {
   const token = Deno.env.get("WHATSAPP_TOKEN");
@@ -100,23 +142,21 @@ Deno.serve(async (req) => {
     for (const entry of entries as Array<{ changes?: unknown[] }>) {
       for (const ch of entry.changes ?? []) {
         const value = (ch as { value?: Record<string, unknown> }).value ?? {};
-        const mensajes = (value.messages ?? []) as Array<{
-          from?: string;
-          text?: { body?: string };
-          type?: string;
-        }>;
+        const mensajes = (value.messages ?? []) as MensajeWa[];
         for (const m of mensajes) {
           const from = m.from ?? "";
-          const texto = m.text?.body?.trim() ?? "";
-          if (!from || !texto) continue;
+          if (!from) continue;
 
-          const esAprob = APRUEBA.test(texto);
-          const esRech = RECHAZA.test(texto);
-          if (!esAprob && !esRech) continue;
+          const r0 = interpretar(m);
+          if (!r0) continue;
+          const esAprob = r0.respuesta === "aprobado";
 
+          // Con presupuesto_id la base igual verifica que ese presupuesto
+          // sea de un cliente con este teléfono.
           const { data, error } = await admin.rpc("fn_taller_wa_responder_presupuesto", {
             p_telefono: from,
-            p_respuesta: esAprob ? "aprobado" : "rechazado",
+            p_respuesta: r0.respuesta,
+            p_presupuesto_id: r0.presupuestoId,
           });
           if (error) {
             console.error("RPC responder:", error);
