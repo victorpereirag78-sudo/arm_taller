@@ -25,12 +25,6 @@ const Auth = (() => {
                 p_rut: rut, p_pass: pass, p_dias: recordar ? 30 : 1
             });
 
-            // Todavía no se ejecutó el script SQL: no dejar al taller afuera.
-            if (error && _rpcNoExiste(error)) {
-                console.warn('[Auth] fn_login_taller no existe todavía — ' +
-                             'usando el login antiguo. Ejecuta sql/01_seguridad_login.sql.');
-                return await _loginLegacy(rut, pass, recordar);
-            }
             if (error) throw new Error('Error de conexión con la base de datos.');
             if (!data?.ok) return { ok: false, error: data?.error || 'RUT o contraseña incorrectos.' };
 
@@ -67,81 +61,6 @@ const Auth = (() => {
         return error.code === 'PGRST202'
             || error.code === '42883'
             || /function .*fn_login_taller/i.test(error.message || '');
-    }
-
-    // ── Login antiguo (compara la contraseña en el navegador) ─────
-    // TEMPORAL: borrar en cuanto sql/01_seguridad_login.sql esté aplicado.
-    async function _loginLegacy(rut, pass, recordar) {
-        const { data: usuarios, error: errU } = await db
-            .from('usuarios')
-            .select(`
-                id,
-                empresa_id,
-                empleado_id,
-                rut,
-                rol,
-                activo,
-                empresas (
-                    id,
-                    nombre,
-                    slug,
-                    logo_url,
-                    tipo,
-                    modulos_activos,
-                    activo
-                )
-            `)
-            .eq('rut', rut)
-            .eq('pass', pass)
-            .eq('activo', true);
-
-        if (errU) throw new Error('Error de conexión con la base de datos.');
-        if (!usuarios || usuarios.length === 0) {
-            return { ok: false, error: 'RUT o contraseña incorrectos.' };
-        }
-
-        // Un RUT puede tener cuenta en varias empresas (ARM Universal es
-        // multiempresa): elegir la que sirve para entrar al taller.
-        const usuario = [...usuarios].sort((a, b) => {
-            const s = u => (u.empresas?.tipo === 'taller' ? 2 : 0)
-                         + (u.empresas?.slug === 'arm-sur' && u.rol === 'admin' ? 1 : 0);
-            return s(b) - s(a);
-        })[0];
-
-        if (!usuario.empresas || !usuario.empresas.activo) {
-            return { ok: false, error: 'El taller no está habilitado. Contacta al administrador.' };
-        }
-
-        const _esSuper = usuario.empresas.slug === 'arm-sur' && usuario.rol === 'admin';
-        if (usuario.empresas.tipo !== 'taller' && !_esSuper) {
-            return { ok: false, error: 'Este acceso es solo para talleres. Para telecom usa ARM Universal.' };
-        }
-
-        const modulos = calcularModulos(usuario.rol, usuario.empresas.modulos_activos);
-        if (modulos.length === 0) {
-            return { ok: false, error: 'Tu usuario no tiene módulos asignados. Contacta al administrador.' };
-        }
-
-        const sesion = {
-            id:          usuario.id,
-            empresa_id:  usuario.empresa_id,
-            empleado_id: usuario.empleado_id,
-            rut:         usuario.rut,
-            rol:         usuario.rol,
-            empresa:     usuario.empresas,
-            modulos:     modulos,
-            login_at:    new Date().toISOString()
-        };
-
-        _guardarSesion(sesion, recordar);
-        _poblarAppData(sesion);
-
-        db.from('usuarios')
-          .update({ ultimo_acceso: new Date().toISOString() })
-          .eq('id', usuario.id)
-          .then(() => {});
-
-        return { ok: true, usuario: sesion };
     }
 
     // ── Restaurar sesión ──────────────────────────────────────────

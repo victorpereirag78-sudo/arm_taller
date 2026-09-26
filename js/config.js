@@ -34,8 +34,9 @@ const db = (() => {
 
 // ── Mi Vehículo (app del propietario, "ARM-DocsCars") ────────────
 // Dominio donde vive la app del cliente. La ruta /vincular/:token la
-// consume esa app para canjear la invitación. Ajustar al dominio real.
-const MI_VEHICULO_URL = 'https://docscars.armsistemas.cl';
+// consume esa app para canjear la invitación. Va con www: sin www el
+// subdominio no resuelve en DNS.
+const MI_VEHICULO_URL = 'https://www.mivehiculo.armsistemas.cl';
 
 function vinculoLink(token) {
     return `${MI_VEHICULO_URL.replace(/\/+$/, '')}/vincular/${token}`;
