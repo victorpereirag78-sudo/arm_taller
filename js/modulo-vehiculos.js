@@ -457,13 +457,13 @@ const ModuloVehiculos = (() => {
             `Hola${vin.cliente_nombre ? ' ' + vin.cliente_nombre.split(' ')[0] : ''}, te invitamos a seguir ` +
             `tu vehículo ${vehiculo.patente} en Mi Vehículo: estado de la orden, presupuestos y avisos. ` +
             `Abre este enlace: ${link}` +
-            (codigo ? ` — o en la app ve a Talleres → "Tengo un código" e ingresa ${codigo}.` : '');
+            (codigo ? ` — o en la app ve a Talleres → "Vincular con un taller" e ingresa el código ${codigo}.` : '');
         const wa = `https://wa.me/${_telWa(vin.cliente_telefono)}?text=${encodeURIComponent(mensaje)}`;
 
         body.innerHTML = `
             <p style="color:var(--text-secondary);font-size:0.85rem">
-                El cliente escanea el QR con la cámara del teléfono, o en <strong>Mi Vehículo</strong>
-                va a <strong>Talleres → “Tengo un código”</strong> e ingresa este código:</p>
+                El cliente abre <strong>Mi Vehículo → Talleres → “Escanear QR del taller”</strong>
+                y apunta a este QR, o escribe este código:</p>
             ${codigo ? `
             <div style="text-align:center;margin:0.6rem 0">
                 <span id="mv-codigo" style="display:inline-block;font-family:var(--font-mono);font-size:1.9rem;font-weight:800;letter-spacing:0.12em;padding:0.35rem 0.9rem;border:2px dashed var(--border-color, #c7d2e0);border-radius:var(--radius-sm)">${esc(codigo)}</span>
