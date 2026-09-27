@@ -9,6 +9,7 @@ const ModuloVehiculos = (() => {
     let _vehiculos = [];
     let _clientes  = [];
     let _vinculos  = {};   // taller_vehiculo_id → vínculo Mi Vehículo (el más reciente)
+    let _robados   = new Set();   // taller_vehiculo_id con reporte de robo vigente (sql/43)
     let _editando  = null;
 
     // ── Init ──────────────────────────────────────────────────────
@@ -50,12 +51,22 @@ const ModuloVehiculos = (() => {
             if (cRes.error) throw cRes.error;
             _vehiculos = vRes.data || [];
             _clientes  = cRes.data || [];
-            await _cargarVinculos(eid);
+            await Promise.all([_cargarVinculos(eid), _cargarRobados(eid)]);
             _renderLista();
         } catch (err) {
             console.error('[Vehículos] cargar:', err);
             avisar('Error cargando vehículos', 'error');
         }
+    }
+
+    /** Vehículos del taller con reporte de robo vigente en Mi Vehículo.
+        Silencioso: si falla, la lista se muestra igual. */
+    async function _cargarRobados(eid) {
+        _robados = new Set();
+        try {
+            const { data, error } = await db.rpc('fn_taller_alertas_robo_flota', { p_empresa_id: eid });
+            if (!error && Array.isArray(data)) _robados = new Set(data);
+        } catch (_e) { /* sin alerta */ }
     }
 
     /** Vínculos con Mi Vehículo (el más reciente por vehículo). Si la
@@ -107,7 +118,8 @@ const ModuloVehiculos = (() => {
             <tbody>
             ${filtrados.map(v => `
                 <tr>
-                    <td style="font-family:var(--font-mono)"><strong>${esc(v.patente)}</strong></td>
+                    <td style="font-family:var(--font-mono)"><strong>${esc(v.patente)}</strong>
+                        ${_robados.has(v.id) ? `<div title="Reporte de robo vigente en Mi Vehículo: no enfrentes al cliente, llama al 133" style="font-family:var(--font-body, inherit);font-size:0.68rem;font-weight:800;color:#dc2626">🚨 REPORTE DE ROBO</div>` : ''}</td>
                     <td>${esc([v.marca, v.modelo].filter(Boolean).join(' ')) || '—'}
                         ${v.color ? `<span style="color:var(--text-muted);font-size:0.75rem"> · ${esc(v.color)}</span>` : ''}</td>
                     <td>${v.anio || '—'}</td>
@@ -393,7 +405,7 @@ const ModuloVehiculos = (() => {
 
         // ── Invitación pendiente ───────────────────────────────────
         if (vin && vin.estado === 'pendiente') {
-            _mvPintarInvitacion(body, vehiculo, vin.token_invitacion, vin.invitacion_expira_at, vin.id);
+            _mvPintarInvitacion(body, vehiculo, vin);
             return;
         }
 
@@ -417,26 +429,50 @@ const ModuloVehiculos = (() => {
             if (error || !data?.ok) {
                 avisar((data && data.error) || 'No se pudo generar la invitación', 'error'); return;
             }
-            _mvPintarInvitacion(body, vehiculo, data.token, data.expira_at, data.vinculo_id);
+            // Se relee la vista: trae el código corto y el teléfono del cliente.
+            await _mvRender(vehiculo);
             recargar();
         });
     }
 
-    function _mvPintarInvitacion(body, vehiculo, token, expira, vinculoId) {
+    /** "ECZ3Z6MT" → "ECZ3-Z6MT" (más fácil de dictar). */
+    function _codigoLegible(c) {
+        return c && c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : (c || '');
+    }
+
+    /** Teléfono chileno → formato de wa.me (569XXXXXXXX). */
+    function _telWa(tel) {
+        const d = String(tel || '').replace(/\D/g, '');
+        if (d.length === 9 && d.startsWith('9')) return '56' + d;
+        if (d.length === 8) return '569' + d;
+        return d;
+    }
+
+    function _mvPintarInvitacion(body, vehiculo, vin) {
+        const token = vin.token_invitacion;
+        const vinculoId = vin.id;
         const link = vinculoLink(token);
+        const codigo = _codigoLegible(vin.codigo);
+        const mensaje =
+            `Hola${vin.cliente_nombre ? ' ' + vin.cliente_nombre.split(' ')[0] : ''}, te invitamos a seguir ` +
+            `tu vehículo ${vehiculo.patente} en Mi Vehículo: estado de la orden, presupuestos y avisos. ` +
+            `Abre este enlace: ${link}` +
+            (codigo ? ` — o en la app ve a Talleres → "Tengo un código" e ingresa ${codigo}.` : '');
+        const wa = `https://wa.me/${_telWa(vin.cliente_telefono)}?text=${encodeURIComponent(mensaje)}`;
+
         body.innerHTML = `
             <p style="color:var(--text-secondary);font-size:0.85rem">
-                El cliente abre <strong>Mi Vehículo</strong>, va a “Vincular con mi taller”
-                y escanea este código (o ingresa el código de abajo).</p>
+                El cliente escanea el QR con la cámara del teléfono, o en <strong>Mi Vehículo</strong>
+                va a <strong>Talleres → “Tengo un código”</strong> e ingresa este código:</p>
+            ${codigo ? `
+            <div style="text-align:center;margin:0.6rem 0">
+                <span id="mv-codigo" style="display:inline-block;font-family:var(--font-mono);font-size:1.9rem;font-weight:800;letter-spacing:0.12em;padding:0.35rem 0.9rem;border:2px dashed var(--border-color, #c7d2e0);border-radius:var(--radius-sm)">${esc(codigo)}</span>
+            </div>` : ''}
             <div id="mv-qr" style="display:flex;justify-content:center;padding:1rem;background:#fff;border-radius:var(--radius-sm);margin:0.5rem 0"></div>
-            <div class="tll-field">
-                <label>Código de vinculación</label>
-                <input class="tll-input" id="mv-token" readonly value="${esc(token)}"
-                       style="font-family:var(--font-mono);font-size:0.8rem" onclick="this.select()">
-            </div>
             <p style="color:var(--text-muted);font-size:0.78rem">
-                Vence el ${fmtFecha(expira)}. <span id="mv-link" style="word-break:break-all">${esc(link)}</span></p>
+                Vence el ${fmtFecha(vin.invitacion_expira_at)}. <span id="mv-link" style="word-break:break-all">${esc(link)}</span></p>
             <div class="tll-modal-footer">
+                <a class="tll-btn tll-btn--primary" href="${esc(wa)}" target="_blank" rel="noopener">Enviar por WhatsApp</a>
                 <button class="tll-btn tll-btn--ghost" id="mv-copiar">Copiar enlace</button>
                 <div class="tll-toolbar-sep"></div>
                 <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>

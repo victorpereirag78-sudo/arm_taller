@@ -101,6 +101,7 @@ const ModuloRecepcion = (() => {
                         <span class="tll-field-msg" id="rec-pat-msg"></span>
                     </div>
                 </div>
+                <div id="rec-alerta-robo"></div>
                 <div id="rec-vehiculo-resultado"></div>
                 <div id="rec-vehiculo-nuevo" class="oculto">
                     <div class="tll-form-grid" style="margin-top:0.6rem">
@@ -261,14 +262,24 @@ const ModuloRecepcion = (() => {
 
         // Patente: normalizar en vivo + buscar al tener largo válido
         const inpPat = document.getElementById('rec-patente');
+        let consultaRobo = 0;
         inpPat.addEventListener('input', async () => {
             inpPat.value = normalizarPatente(inpPat.value);
 
             _vehiculoSel = null;
             document.getElementById('rec-vehiculo-resultado').innerHTML = '';
+            document.getElementById('rec-alerta-robo').innerHTML = '';
             document.getElementById('rec-vehiculo-nuevo').classList.add('oculto');
 
-            if (inpPat.value.length >= 5) await _buscarVehiculo(inpPat.value);
+            if (inpPat.value.length >= 5) {
+                // ¿Reporte de robo en Mi Vehículo? (solo se pinta la última consulta)
+                const n = ++consultaRobo;
+                const patente = inpPat.value;
+                consultarAlertaRobo(patente).then(r => {
+                    if (n === consultaRobo) document.getElementById('rec-alerta-robo').innerHTML = htmlAlertaRobo(r);
+                });
+                await _buscarVehiculo(patente);
+            }
         });
 
         // Validación en vivo de teléfono y email del cliente nuevo

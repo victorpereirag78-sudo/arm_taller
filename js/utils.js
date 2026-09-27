@@ -156,3 +156,37 @@ function errorCarga(err, script, que) {
         </div>
     </div>`;
 }
+
+// ── Alerta de vehículo robado (sql/43) ─────────────────────────
+/** ¿La patente tiene un reporte de robo vigente en Mi Vehículo?
+ *  Devuelve { robado, desde, comuna } o null si no se pudo consultar
+ *  (silencioso: nunca debe trabar el trabajo del taller). */
+async function consultarAlertaRobo(patente) {
+    if (!patente || String(patente).length < 5) return null;
+    try {
+        const { data, error } = await db.rpc('fn_taller_alerta_robo', {
+            p_empresa_id: window.appData.usuario.empresa_id,
+            p_patente: patente
+        });
+        if (error) return null;
+        return data && data.robado ? data : null;
+    } catch (_e) {
+        return null;
+    }
+}
+
+/** Aviso rojo para mostrar en Recepción, Vehículos y la OT. */
+function htmlAlertaRobo(r) {
+    if (!r) return '';
+    return `
+    <div class="tll-alerta-robo" role="alert" style="margin:0.6rem 0;padding:0.8rem 1rem;border:2px solid #dc2626;border-radius:var(--radius-sm);background:rgba(220,38,38,0.14);color:var(--text-primary, #f0f4ff)">
+        <div style="font-weight:800;color:#f87171">🚨 Esta patente tiene un reporte de robo vigente</div>
+        <div style="font-size:0.85rem;margin-top:0.2rem">
+            Reportado por su dueño en Mi Vehículo${r.desde ? ' el ' + esc(fmtFechaHora(r.desde)) : ''}${r.comuna ? ' (' + esc(r.comuna) + ')' : ''}.
+        </div>
+        <div style="font-size:0.85rem;margin-top:0.35rem">
+            <strong>Por tu seguridad no enfrentes al cliente ni retengas el vehículo por tu cuenta.</strong>
+            Llama al <a href="tel:133" style="font-weight:800;color:#f87171">133 (Carabineros)</a> y entrégales la patente.
+        </div>
+    </div>`;
+}

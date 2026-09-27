@@ -332,6 +332,8 @@ const ModuloOrdenes = (() => {
             <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
         </div>
 
+        <div id="ot-alerta-robo"></div>
+
         <div class="tll-form-grid" style="margin-bottom:1rem">
             <div class="tll-field">
                 <label>Vehículo</label>
@@ -459,6 +461,14 @@ const ModuloOrdenes = (() => {
             <button class="tll-btn tll-btn--primary" id="ot-d-guardar">Guardar cambios</button>
             ` : `<button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>`}
         </div>`, '760px');
+
+        // ¿Reporte de robo en Mi Vehículo? (no bloquea la carga del detalle)
+        if (veh.patente) {
+            consultarAlertaRobo(veh.patente).then(r => {
+                const cont = document.getElementById('ot-alerta-robo');
+                if (cont && _ordenAbierta?.id === orden.id) cont.innerHTML = htmlAlertaRobo(r);
+            });
+        }
 
         await _cargarItems();
         _cargarActividad(orden.id);
