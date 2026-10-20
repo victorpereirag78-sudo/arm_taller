@@ -1455,3 +1455,15 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
     #prs-items .tll-btn { padding: 0.3rem 0.5rem; font-size: 0.72rem; }
     .tll-ot-totales { gap: 0.6rem; }
 }
+
+/* ── Presupuesto: pie del detalle (herramientas a la izquierda, acciones a la derecha) ── */
+.prs-pie { justify-content: space-between; align-items: center; gap: 0.6rem 1.2rem; }
+.prs-pie-g { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.prs-pie-g:last-child { margin-left: auto; justify-content: flex-end; }
+.prs-opcional label { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0;
+    font-family: var(--font-body); font-size: 0.82rem; letter-spacing: 0; text-transform: none;
+    color: var(--text-secondary); cursor: pointer; }
+@media (max-width: 640px) {
+    .prs-pie-g { flex: 1 1 100%; }
+    .prs-pie-g:last-child { margin-left: 0; }
+}

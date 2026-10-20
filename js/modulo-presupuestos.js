@@ -573,23 +573,27 @@ const ModuloPresupuestos = (() => {
 
         <div class="tll-ot-totales" id="prs-totales" style="flex-direction:column;align-items:stretch"></div>
 
-        <div class="tll-modal-footer">
-            <button class="tll-btn tll-btn--ghost" id="prs-ver">👁 Ver documento</button>
-            <button class="tll-btn tll-btn--ghost" id="prs-imprimir">🖨 Imprimir / PDF</button>
-            ${p.estado === 'borrador' ? `<button class="tll-btn tll-btn--primary" id="prs-enviar">📤 Enviar al cliente</button>` : ''}
-            ${p.estado === 'enviado' ? `<button class="tll-btn tll-btn--ghost" id="prs-enviar">📤 Reenviar</button>
+        <div class="tll-modal-footer prs-pie">
+            <div class="prs-pie-g">
+                <button class="tll-btn tll-btn--ghost" id="prs-ver">👁 Ver documento</button>
+                <button class="tll-btn tll-btn--ghost" id="prs-imprimir">🖨 Imprimir / PDF</button>
+                ${p.estado === 'enviado' ? `
                 <button class="tll-btn tll-btn--ghost" id="prs-copiar">🔗 Copiar enlace</button>
                 <button class="tll-btn tll-btn--ghost" id="prs-wa">💬 WhatsApp</button>` : ''}
-            ${['borrador', 'enviado'].includes(p.estado) && !p.vencido
-                ? `<button class="tll-btn tll-btn--primary" id="prs-aprobar">✓ Cliente aprobó</button>
-                   <button class="tll-btn tll-btn--danger" id="prs-rechazar">Rechazó</button>` : ''}
-            ${p.estado === 'aprobado'
-                ? `<button class="tll-btn tll-btn--primary" id="prs-convertir">🛠 Convertir en OT</button>` : ''}
-            ${!['convertido', 'reemplazado'].includes(p.estado)
-                ? `<button class="tll-btn tll-btn--ghost" id="prs-version">Nueva versión</button>` : ''}
-            <div class="tll-toolbar-sep"></div>
-            <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>
-        </div>`, '860px');
+                ${!['convertido', 'reemplazado'].includes(p.estado)
+                    ? `<button class="tll-btn tll-btn--ghost" id="prs-version">Nueva versión</button>` : ''}
+            </div>
+            <div class="prs-pie-g">
+                ${p.estado === 'borrador' ? `<button class="tll-btn tll-btn--primary" id="prs-enviar">📤 Enviar al cliente</button>` : ''}
+                ${p.estado === 'enviado' ? `<button class="tll-btn tll-btn--ghost" id="prs-enviar">📤 Reenviar</button>` : ''}
+                ${['borrador', 'enviado'].includes(p.estado) && !p.vencido
+                    ? `<button class="tll-btn tll-btn--primary" id="prs-aprobar">✓ Cliente aprobó</button>
+                       <button class="tll-btn tll-btn--danger" id="prs-rechazar">Rechazó</button>` : ''}
+                ${p.estado === 'aprobado'
+                    ? `<button class="tll-btn tll-btn--primary" id="prs-convertir">🛠 Convertir en OT</button>` : ''}
+                <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>
+            </div>
+        </div>`, '980px');
 
         await _cargarItems();
 

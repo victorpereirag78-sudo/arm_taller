@@ -132,9 +132,21 @@ const ModuloTaller = (() => {
                             <input class="tll-input" id="tll-f-email" type="email" value="${esc(_config?.email || '')}">
                         </div>
                         <div class="tll-field tll-field--full">
-                            <label>Logo (URL)</label>
-                            <input class="tll-input" id="tll-f-logo" value="${esc(_empresa?.logo_url || '')}">
-                            <span class="tll-field-msg">Aparece en la barra lateral.</span>
+                            <label>Logo</label>
+                            <div style="display:flex;gap:0.8rem;align-items:center;flex-wrap:wrap">
+                                <div id="tll-logo-prev" style="width:120px;height:64px;border:1px dashed var(--border);
+                                     border-radius:6px;display:flex;align-items:center;justify-content:center;
+                                     background:#fff;overflow:hidden;font-size:0.7rem;color:#888">Sin logo</div>
+                                <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+                                    <label class="tll-btn tll-btn--ghost" style="cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-family:inherit;font-size:0.8rem">
+                                        📁 Subir imagen
+                                        <input type="file" id="tll-f-logo-file" accept="image/png,image/jpeg,image/webp" hidden>
+                                    </label>
+                                    <button type="button" class="tll-btn tll-btn--ghost" id="tll-logo-quitar">Quitar</button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="tll-f-logo" value="${esc(_empresa?.logo_url || '')}">
+                            <span class="tll-field-msg">Sube el archivo de tu logo (PNG o JPG). Se achica solo y aparece en la barra lateral, en el presupuesto y en la app del cliente.</span>
                         </div>
                     </div>
                 </div>
@@ -247,8 +259,74 @@ const ModuloTaller = (() => {
         const inpRut = document.getElementById('tll-f-rut');
         inpRut.addEventListener('input', () => { inpRut.value = formatearRut(inpRut.value); });
 
+        _enlazarLogo();
         document.getElementById('tll-guardar').addEventListener('click', _guardarMiTaller);
         document.getElementById('tll-recargar').addEventListener('click', recargar);
+    }
+
+    // ── Logo: se sube como archivo y se guarda dentro de la misma columna ──
+    // (imagen chica en base64). Así no hace falta alojar la imagen en otro
+    // sitio ni pegar un enlace, y la app del cliente —que solo carga imágenes
+    // propias— la puede mostrar.
+    const LOGO_MAX_PX = 360;
+
+    function _pintarLogo() {
+        const v = document.getElementById('tll-f-logo').value;
+        document.getElementById('tll-logo-prev').innerHTML = v
+            ? `<img src="${esc(v)}" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain">`
+            : 'Sin logo';
+    }
+
+    function _enlazarLogo() {
+        _pintarLogo();
+        document.getElementById('tll-logo-quitar').addEventListener('click', () => {
+            document.getElementById('tll-f-logo').value = '';
+            _pintarLogo();
+        });
+        document.getElementById('tll-f-logo-file').addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            try {
+                document.getElementById('tll-f-logo').value = await _imagenAchicada(file);
+                _pintarLogo();
+                avisar('Logo cargado. Presiona "Guardar datos del taller" para aplicarlo.');
+            } catch (err) {
+                console.warn('[Taller] logo:', err);
+                avisar('No se pudo leer esa imagen. Prueba con un PNG o JPG.', 'error');
+            }
+        });
+    }
+
+    /** Achica la imagen a LOGO_MAX_PX y la devuelve como data URL (PNG si es
+        PNG, para conservar transparencia; si no, JPG). */
+    function _imagenAchicada(file) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const k = Math.min(1, LOGO_MAX_PX / Math.max(img.width, img.height));
+                const c = document.createElement('canvas');
+                c.width  = Math.max(1, Math.round(img.width * k));
+                c.height = Math.max(1, Math.round(img.height * k));
+                const ctx = c.getContext('2d');
+                const png = file.type === 'image/png';
+                if (!png) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
+                ctx.drawImage(img, 0, 0, c.width, c.height);
+                // PNG solo si pesa poco (conserva transparencia); si no, JPG sobre blanco
+                let out = png ? c.toDataURL('image/png') : '';
+                if (!out || out.length > 90000) {
+                    ctx.globalCompositeOperation = 'destination-over';
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, c.width, c.height);
+                    out = c.toDataURL('image/jpeg', 0.85);
+                }
+                out.length > 250000 ? reject(new Error('muy pesada')) : resolve(out);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('no es imagen')); };
+            img.src = url;
+        });
     }
 
     /** "a, b ,c" → ['a','b','c'] (sin vacíos ni duplicados). */

@@ -37,9 +37,11 @@ const PresupuestoDoc = (() => {
             : d.toLocaleDateString('es-CL');
     }
 
-    /** Solo se pinta una URL de logo http(s): nada de javascript: ni data:. */
+    /** Solo se pinta un logo http(s) o una imagen base64 (el logo subido desde
+        Mi taller): nada de javascript: ni otros esquemas. */
     function _logoSeguro(url) {
-        return /^https?:\/\//i.test(String(url || '').trim()) ? String(url).trim() : '';
+        const u = String(url || '').trim();
+        return /^https?:\/\//i.test(u) || /^data:image\/(png|jpeg|webp);base64,/i.test(u) ? u : '';
     }
 
     function _filaId(k, v) {

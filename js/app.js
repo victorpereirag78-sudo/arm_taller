@@ -225,7 +225,7 @@ function _pintarUsuarioEmpresa() {
     if (empresa?.logo_url) {
         document.getElementById('empresaLogo').innerHTML =
             `<img src="${esc(empresa.logo_url)}" alt="${esc(empresa.nombre)}"
-                  style="width:100%;height:100%;object-fit:cover;border-radius:6px">`;
+                  style="width:100%;height:100%;object-fit:contain;border-radius:6px">`;
     }
 }
 
