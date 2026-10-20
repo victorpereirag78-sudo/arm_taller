@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#f3f4f6">
+    <title>Presupuesto</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <style>
+        :root { --bg:#f3f4f6; --card:#fff; --txt:#111827; --muted:#6b7280; --ok:#15803d; --mal:#b91c1c; --line:#e5e7eb; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--bg); color:var(--txt);
+               font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
+        .pg-wrap { max-width:860px; margin:0 auto; padding:16px 12px 40px; }
+        .pg-doc { background:var(--card); border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.12); overflow:hidden; }
+        .pg-msg { padding:48px 20px; text-align:center; color:var(--muted); }
+        .pg-msg strong { display:block; color:var(--txt); font-size:18px; margin-bottom:6px; }
+        .pg-barra { display:flex; gap:10px; margin:12px 0 0; flex-wrap:wrap; }
+        .pg-btn { flex:1; min-width:150px; padding:13px 16px; border-radius:9px; border:1.5px solid var(--line);
+                  background:#fff; color:var(--txt); font-size:15px; font-weight:700; cursor:pointer; }
+        .pg-btn.ok  { background:var(--ok);  border-color:var(--ok);  color:#fff; }
+        .pg-btn.mal { background:#fff; border-color:var(--mal); color:var(--mal); }
+        .pg-btn:disabled { opacity:.55; cursor:default; }
+        .pg-panel { background:var(--card); border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.12);
+                    padding:16px; margin-top:12px; }
+        .pg-panel label { display:block; font-size:13px; font-weight:700; margin:0 0 4px; }
+        .pg-panel input, .pg-panel textarea { width:100%; padding:11px 12px; border:1.5px solid var(--line);
+                    border-radius:8px; font:inherit; margin-bottom:10px; }
+        .pg-aviso { margin-top:12px; padding:12px 14px; border-radius:9px; font-weight:600; font-size:14px; }
+        .pg-aviso.ok  { background:#e7f7ee; color:#146c3a; }
+        .pg-aviso.mal { background:#fdecec; color:#9b1c1c; }
+        .pg-pie { margin-top:18px; text-align:center; font-size:12px; color:var(--muted); }
+        @media print { body { background:#fff; } .pg-wrap { padding:0; max-width:none; }
+                       .pg-doc { box-shadow:none; border-radius:0; } .pg-barra, .pg-panel, .pg-aviso, .pg-pie { display:none; } }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="pg-wrap">
+        <div class="pg-doc" id="pg-doc"><div class="pg-msg">Cargando presupuesto…</div></div>
+        <div id="pg-acciones"></div>
+        <div class="pg-pie">Presupuesto generado con ARM Sistemas</div>
+    </div>
+
+    <script src="js/config.js?v=20261020"></script>
+    <script src="js/presupuesto-doc.js?v=20261020"></script>
+    <script src="js/presupuesto-publico.js?v=20261020"></script>
+</body>
+</html>

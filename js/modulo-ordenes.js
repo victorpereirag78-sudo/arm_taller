@@ -440,7 +440,7 @@ const ModuloOrdenes = (() => {
                 style="width:100%;resize:vertical;margin-top:0.3rem"></textarea>
             <div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.35rem">
                 <span style="flex:1;font-size:0.72rem;color:var(--text-muted)">
-                    Le llega por Mi Vehículo si tiene el vehículo vinculado, y por WhatsApp según “Cómo avisarle”.
+                    Le llega por la App si tiene el vehículo vinculado, y por WhatsApp según “Cómo avisarle”.
                 </span>
                 <button class="tll-btn tll-btn--ghost" id="ot-msg-enviar">Enviar mensaje</button>
             </div>
@@ -514,10 +514,9 @@ const ModuloOrdenes = (() => {
             if (error) throw error;
             if (!data?.ok) { avisar(data?.error || 'No se pudo enviar', 'error'); return; }
 
-            const nombres = { mi_vehiculo: 'Mi Vehículo', whatsapp: 'WhatsApp', email: 'correo' };
-            const canales = (data.canales || []).map(c => nombres[c] || c);
+            const canales = (data.canales || []).map(c => CANAL_NOMBRE[c] || c);
             if (canales.length === 0) {
-                avisar('Mensaje guardado, pero al cliente no le llega: no tiene Mi Vehículo vinculado ni teléfono (o eligió no recibir avisos).', 'error');
+                avisar('Mensaje guardado, pero al cliente no le llega: no tiene la App vinculada ni teléfono (o eligió no recibir avisos).', 'error');
             } else {
                 avisar(`Mensaje enviado por ${canales.join(' y ')}`);
             }
@@ -555,7 +554,7 @@ const ModuloOrdenes = (() => {
             }));
             (nt.data || []).forEach(e => {
                 const canales = (e.taller_notificaciones || [])
-                    .map(n => `${n.canal === 'mi_vehiculo' ? 'Mi Vehículo' : n.canal}${n.estado !== 'pendiente' ? ' (' + n.estado + ')' : ''}`)
+                    .map(n => `${CANAL_NOMBRE[n.canal] || n.canal}${n.estado !== 'pendiente' ? ' (' + n.estado + ')' : ''}`)
                     .join(', ');
                 const texto = e.tipo === 'mensaje_taller'
                     ? `💬 “${esc(e.detalle || '')}”`

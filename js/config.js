@@ -42,6 +42,18 @@ function vinculoLink(token) {
     return `${MI_VEHICULO_URL.replace(/\/+$/, '')}/vincular/${token}`;
 }
 
+// ── Cómo informar al cliente ─────────────────────────────────────
+// Los valores son los de la base (taller_clientes.canal_pref y
+// taller_presupuestos.canal_aviso); 'mi_vehiculo' se muestra como "App".
+const CANAL_AVISO = [
+    ['ambos',       'App y WhatsApp'],
+    ['mi_vehiculo', 'Solo App'],
+    ['whatsapp',    'Solo WhatsApp'],
+    ['auto',        'Automático (App si el vehículo está vinculado, si no WhatsApp)'],
+    ['ninguno',     'No enviar avisos (se entrega en persona)']
+];
+const CANAL_NOMBRE = { mi_vehiculo: 'App', whatsapp: 'WhatsApp', email: 'correo' };
+
 // ── Planes comerciales ───────────────────────────────────────────
 const PLANES = {
     basico:      { nombre: 'Básico',      orden: 1 },

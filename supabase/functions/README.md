@@ -61,11 +61,19 @@ Ejemplos para la revisión de Meta: `Taller Demo` · `¡Tu Toyota Yaris está li
 **`arm_taller_presupuesto`** — cuerpo:
 
 ```
-Hola, *{{1}}* te envió el presupuesto N° {{2}} por un total de {{3}}. ¿Lo apruebas?
+Hola, *{{1}}* te envió el presupuesto N° {{2}} por un total de {{3}}.
+Míralo completo aquí: {{4}}
+¿Lo apruebas?
 ```
 
 Botones → **Respuesta rápida**: `Apruebo` y `Rechazo` (en ese orden).
-Ejemplos: `Taller Demo` · `12` · `$185.000`
+Ejemplos: `Taller Demo` · `12` · `$185.000` · `https://tu-dominio.pages.dev/presupuesto.html?t=a1b2c3`
+
+`{{4}}` es el enlace a `presupuesto.html` (sql/44): el cliente ve el documento
+completo del taller —logo, datos, trabajo a realizar, valores— y también puede
+aprobarlo o rechazarlo desde ahí. **Si la plantilla ya se había creado con 3
+variables, hay que crear una nueva con 4** (Meta no deja editar una aprobada) y
+apuntar `WHATSAPP_TPL_PRESUPUESTO` a su nombre.
 
 El botón lleva el id del presupuesto, así la respuesta va al presupuesto
 correcto aunque el cliente tenga varios pendientes. Como texto, solo cuenta

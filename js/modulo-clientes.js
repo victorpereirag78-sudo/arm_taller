@@ -132,15 +132,9 @@ const ModuloClientes = (() => {
                 <input class="tll-input" id="cli-f-direccion" value="${esc(cliente?.direccion || '')}">
             </div>
             <div class="tll-field tll-field--full">
-                <label>Cómo avisarle (Mi Vehículo / WhatsApp)</label>
+                <label>Cómo avisarle (App / WhatsApp)</label>
                 <select class="tll-select" id="cli-f-canal">
-                    ${[
-                        ['auto', 'Automático (Mi Vehículo si está vinculado, si no WhatsApp)'],
-                        ['mi_vehiculo', 'Solo Mi Vehículo'],
-                        ['whatsapp', 'Solo WhatsApp'],
-                        ['ambos', 'Ambos'],
-                        ['ninguno', 'No enviar avisos']
-                    ].map(([v, t]) => `<option value="${v}" ${
+                    ${CANAL_AVISO.map(([v, t]) => `<option value="${v}" ${
                         (cliente?.canal_pref || 'auto') === v ? 'selected' : ''}>${t}</option>`).join('')}
                 </select>
             </div>

@@ -20,8 +20,14 @@ const ModuloPresupuestos = (() => {
     let _abierto   = null;
     let _filtro    = 'vigentes';
 
+    // Cómo avisó el cliente que aprueba, cuando lo registra el taller a mano.
     const VIAS = [['presencial', 'En el taller'], ['telefono', 'Por teléfono'],
                   ['whatsapp', 'Por WhatsApp'], ['email', 'Por email'], ['otro', 'Otro']];
+    // Todas las vías posibles al mostrar (la App y el enlace las registra el sistema).
+    const VIAS_ETIQ = Object.fromEntries([...VIAS, ['mi_vehiculo', 'Desde la App'],
+                                          ['enlace', 'Desde el enlace']]);
+
+    let _cfg = null;   // taller_config (condiciones, datos del taller) para el documento
 
     // ── Init ──────────────────────────────────────────────────────
     async function init() {
@@ -63,19 +69,21 @@ const ModuloPresupuestos = (() => {
         try {
             const eid = window.appData.usuario.empresa_id;
 
-            const [pRes, cRes, vRes, rRes] = await Promise.all([
+            const [pRes, cRes, vRes, rRes, cfgRes] = await Promise.all([
                 db.from('v_taller_presupuestos').select('*')
                   .eq('empresa_id', eid).order('numero', { ascending: false })
                   .order('version', { ascending: false }).range(0, 999),
-                db.from('taller_clientes').select('id, nombre, rut, telefono')
-                  .eq('empresa_id', eid).eq('activo', true).order('nombre'),
-                db.from('taller_vehiculos').select('id, patente, marca, modelo, cliente_id, kilometraje')
+                db.from('taller_clientes').select('id, nombre, rut, telefono, email, direccion, canal_pref')
+                  .eq('empresa_id', eid).eq('activo', true).order('nombre').range(0, 4999),
+                db.from('taller_vehiculos').select('id, patente, marca, modelo, anio, color, vin, cliente_id, kilometraje')
                   .eq('empresa_id', eid).eq('activo', true).order('patente').range(0, 4999),
                 db.from('taller_repuestos').select('id, codigo, nombre, precio_venta, precio_costo, stock')
-                  .eq('empresa_id', eid).eq('activo', true).order('nombre').range(0, 4999)
+                  .eq('empresa_id', eid).eq('activo', true).order('nombre').range(0, 4999),
+                db.rpc('fn_taller_config', { p_empresa_id: eid })
             ]);
 
             if (pRes.error) throw pRes.error;
+            _cfg = cfgRes.data?.ok ? cfgRes.data.config : _cfg;
             _lista     = pRes.data || [];
             _clientes  = cRes.data || [];
             _vehiculos = vRes.data || [];
@@ -219,11 +227,17 @@ const ModuloPresupuestos = (() => {
     }
 
     // ── Nuevo ─────────────────────────────────────────────────────
+    // El presupuesto es lo primero que se hace cuando llega un cliente:
+    // se llena con todos los datos y de él salen el cliente y el vehículo
+    // (fn_taller_presupuesto_crear, sql/44).
     function abrirNuevo(preset = null) {
-        if (_clientes.length === 0) {
-            avisar('Primero crea un cliente en el módulo Clientes', 'error');
-            return;
-        }
+        const cli0 = preset?.cliente_id ? _clientes.find(c => c.id === preset.cliente_id) : null;
+        const veh0 = preset?.vehiculo_id ? _vehiculos.find(v => v.id === preset.vehiculo_id) : null;
+
+        const seccion = (t) => `<div class="tll-field tll-field--full">
+            <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+                        color:var(--text-secondary);border-bottom:1px solid var(--border, #2a3350);
+                        padding-bottom:0.25rem">${t}</div></div>`;
 
         abrirModal(`
         <div class="tll-modal-header">
@@ -231,31 +245,65 @@ const ModuloPresupuestos = (() => {
             <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
         </div>
         <div class="tll-form-grid">
+            ${seccion('Cliente')}
             <div class="tll-field">
-                <label>Cliente *</label>
-                <select class="tll-select" id="prs-f-cliente">
-                    <option value="">— Selecciona —</option>
-                    ${_clientes.map(c => `
-                        <option value="${c.id}" ${preset?.cliente_id === c.id ? 'selected' : ''}>
-                            ${esc(c.nombre)}</option>`).join('')}
-                </select>
+                <label>RUT</label>
+                <input class="tll-input" id="prs-f-rut" placeholder="12.345.678-9" autocomplete="off">
+                <span class="tll-field-msg" id="prs-f-rut-msg"></span>
             </div>
             <div class="tll-field">
-                <label>Vehículo *</label>
-                <select class="tll-select" id="prs-f-vehiculo" ${preset?.cliente_id ? '' : 'disabled'}>
-                    <option value="">— Primero el cliente —</option>
-                </select>
+                <label>Nombre *</label>
+                <input class="tll-input" id="prs-f-nombre" list="prs-dl-clientes" autocomplete="off">
+                <datalist id="prs-dl-clientes">
+                    ${_clientes.map(c => `<option value="${esc(c.nombre)}"></option>`).join('')}
+                </datalist>
+            </div>
+            <div class="tll-field">
+                <label>Teléfono</label>
+                <input class="tll-input" id="prs-f-tel" placeholder="+56 9 …" inputmode="tel">
+            </div>
+            <div class="tll-field">
+                <label>Correo</label>
+                <input class="tll-input" id="prs-f-email" type="email">
+            </div>
+            <div class="tll-field tll-field--full">
+                <label>Dirección</label>
+                <input class="tll-input" id="prs-f-dir">
+            </div>
+
+            ${seccion('Vehículo')}
+            <div class="tll-field">
+                <label>Patente *</label>
+                <input class="tll-input" id="prs-f-pat" placeholder="ABCD12" autocomplete="off"
+                       style="font-family:var(--font-mono);text-transform:uppercase">
+                <span class="tll-field-msg" id="prs-f-pat-msg"></span>
+            </div>
+            <div class="tll-field">
+                <label>Marca</label>
+                <input class="tll-input" id="prs-f-marca" placeholder="Volkswagen">
+            </div>
+            <div class="tll-field">
+                <label>Modelo</label>
+                <input class="tll-input" id="prs-f-modelo" placeholder="Gol 1.6">
+            </div>
+            <div class="tll-field">
+                <label>Año</label>
+                <input class="tll-input" id="prs-f-anio" type="number" min="1950" max="2035">
+            </div>
+            <div class="tll-field">
+                <label>Color</label>
+                <input class="tll-input" id="prs-f-color">
             </div>
             <div class="tll-field">
                 <label>Kilometraje</label>
-                <input class="tll-input" id="prs-f-km" type="number" min="0"
-                       value="${preset?.kilometraje ?? ''}">
+                <input class="tll-input" id="prs-f-km" type="number" min="0">
             </div>
-            <div class="tll-field">
-                <label>Validez (días)</label>
-                <input class="tll-input" id="prs-f-validez" type="number" min="1" value="15">
-                <span class="tll-field-msg">Con repuestos importados, 7 días es más realista.</span>
+            <div class="tll-field tll-field--full">
+                <label>VIN / Chasis</label>
+                <input class="tll-input" id="prs-f-vin" style="font-family:var(--font-mono);text-transform:uppercase">
             </div>
+
+            ${seccion('Presupuesto')}
             <div class="tll-field tll-field--full">
                 <label>Motivo / lo que pide el cliente *</label>
                 <textarea class="tll-textarea" id="prs-f-motivo"
@@ -265,84 +313,148 @@ const ModuloPresupuestos = (() => {
                 <label>Diagnóstico</label>
                 <textarea class="tll-textarea" id="prs-f-diagnostico"></textarea>
             </div>
+            <div class="tll-field">
+                <label>Validez (días)</label>
+                <input class="tll-input" id="prs-f-validez" type="number" min="1"
+                       value="${_cfg?.dias_validez_presupuesto || 15}">
+                <span class="tll-field-msg">Con repuestos importados, 7 días es más realista.</span>
+            </div>
+
+            ${seccion('Cómo informar al cliente')}
+            <div class="tll-field tll-field--full">
+                <select class="tll-select" id="prs-f-canal">
+                    ${CANAL_AVISO.map(([v, t]) => `<option value="${v}" ${v === 'ambos' ? 'selected' : ''}>${t}</option>`).join('')}
+                </select>
+                <span class="tll-field-msg">
+                    Al enviar el presupuesto, el cliente lo recibe en la App y/o por WhatsApp
+                    con un enlace para verlo completo y aprobarlo.</span>
+            </div>
         </div>
         <div class="tll-modal-footer">
             <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cancelar</button>
             <button class="tll-btn tll-btn--primary" id="prs-f-crear">Crear y cotizar</button>
-        </div>`, '660px');
+        </div>`, '760px');
 
-        const selCli = document.getElementById('prs-f-cliente');
-        const cargarVehiculos = () => {
-            const sel = document.getElementById('prs-f-vehiculo');
-            const suyos = _vehiculos.filter(v => v.cliente_id === selCli.value);
-            if (suyos.length === 0) {
-                sel.innerHTML = '<option value="">Sin vehículos — créalo en Vehículos</option>';
-                sel.disabled = true;
-                return;
-            }
-            sel.innerHTML = '<option value="">— Selecciona —</option>' +
-                suyos.map(v => `<option value="${v.id}" data-km="${v.kilometraje || 0}"
-                    ${preset?.vehiculo_id === v.id ? 'selected' : ''}>
-                    ${esc(v.patente)} · ${esc([v.marca, v.modelo].filter(Boolean).join(' '))}
-                </option>`).join('');
-            sel.disabled = false;
+        const $ = (id) => document.getElementById(id);
+        let cliSel = null;   // cliente existente reconocido por RUT, nombre o patente
+
+        /** Llena solo lo que está vacío: nunca pisa lo que el usuario ya escribió. */
+        const poner = (id, valor) => {
+            const el = $(id);
+            if (el && valor != null && String(valor).trim() !== '' && !el.value.trim()) el.value = valor;
         };
-        selCli.addEventListener('change', cargarVehiculos);
-        if (preset?.cliente_id) cargarVehiculos();
 
-        document.getElementById('prs-f-vehiculo').addEventListener('change', (e) => {
-            const km = e.target.selectedOptions[0]?.dataset.km;
-            if (km && !document.getElementById('prs-f-km').value) {
-                document.getElementById('prs-f-km').value = km;
+        const aplicarCliente = (c, aviso) => {
+            cliSel = c;
+            poner('prs-f-nombre', c.nombre);
+            poner('prs-f-tel', c.telefono);
+            poner('prs-f-email', c.email);
+            poner('prs-f-dir', c.direccion);
+            if (c.rut && !$('prs-f-rut').value.trim()) $('prs-f-rut').value = formatearRut(c.rut);
+            $('prs-f-rut-msg').textContent = aviso || '✓ Cliente existente: se actualizan sus datos';
+        };
+
+        const aplicarVehiculo = (v) => {
+            poner('prs-f-marca', v.marca);
+            poner('prs-f-modelo', v.modelo);
+            poner('prs-f-anio', v.anio);
+            poner('prs-f-color', v.color);
+            poner('prs-f-vin', v.vin);
+            poner('prs-f-km', v.kilometraje || '');
+            $('prs-f-pat-msg').textContent = '✓ Vehículo existente: se actualizan sus datos';
+            const dueno = _clientes.find(c => c.id === v.cliente_id);
+            if (dueno && !cliSel) aplicarCliente(dueno, '✓ Dueño del vehículo (cliente existente)');
+        };
+
+        $('prs-f-rut').addEventListener('input', (e) => {
+            e.target.value = formatearRut(e.target.value);
+            const rut = normalizarRut(e.target.value);
+            const c = rut.length >= 8 ? _clientes.find(x => normalizarRut(x.rut) === rut) : null;
+            if (c) aplicarCliente(c);
+            else {
+                if (cliSel && normalizarRut(cliSel.rut) !== rut) cliSel = null;
+                $('prs-f-rut-msg').textContent = '';
             }
         });
 
-        document.getElementById('prs-f-crear').addEventListener('click', _crear);
+        $('prs-f-nombre').addEventListener('change', (e) => {
+            const nombre = e.target.value.trim().toLowerCase();
+            const c = nombre && _clientes.find(x => (x.nombre || '').toLowerCase() === nombre);
+            if (c) aplicarCliente(c);
+        });
+
+        $('prs-f-pat').addEventListener('input', (e) => {
+            const pat = normalizarPatente(e.target.value);
+            e.target.value = pat;
+            const v = pat.length >= 5 ? _vehiculos.find(x => normalizarPatente(x.patente) === pat) : null;
+            if (v) aplicarVehiculo(v);
+            else $('prs-f-pat-msg').textContent = '';
+        });
+
+        // Preset (p. ej. desde otro módulo): se rellena como si lo hubieran escrito
+        if (cli0) aplicarCliente(cli0);
+        if (veh0) { $('prs-f-pat').value = normalizarPatente(veh0.patente); aplicarVehiculo(veh0); }
+        if (preset?.kilometraje) $('prs-f-km').value = preset.kilometraje;
+
+        $('prs-f-crear').addEventListener('click', () => _crear(() => cliSel));
     }
 
-    async function _crear() {
-        const clienteId  = document.getElementById('prs-f-cliente').value;
-        const vehiculoId = document.getElementById('prs-f-vehiculo').value;
-        const motivo     = document.getElementById('prs-f-motivo').value.trim();
+    async function _crear(clienteElegido) {
+        const $ = (id) => document.getElementById(id);
+        const v = (id) => $(id).value.trim();
 
-        if (!clienteId || !vehiculoId) { avisar('Cliente y vehículo son obligatorios', 'error'); return; }
-        if (!motivo) { avisar('Describe qué se está cotizando', 'error'); return; }
+        const nombre = v('prs-f-nombre');
+        const patente = normalizarPatente(v('prs-f-pat'));
+        const motivo = v('prs-f-motivo');
 
-        const btn = document.getElementById('prs-f-crear');
+        if (!nombre)  { avisar('El nombre del cliente es obligatorio', 'error'); return; }
+        if (!patente) { avisar('La patente es obligatoria', 'error'); return; }
+        if (!motivo)  { avisar('Describe qué se está cotizando', 'error'); return; }
+
+        const rut = normalizarRut(v('prs-f-rut'));
+        if (rut && !validarRutChileno(rut)) { avisar('RUT inválido — revisa el dígito verificador', 'error'); return; }
+        if (v('prs-f-tel') && !validarTelefono(v('prs-f-tel'))) {
+            avisar('Teléfono inválido — deben ser 8 o 9 dígitos', 'error'); return;
+        }
+        if (v('prs-f-email') && !validarEmail(v('prs-f-email'))) {
+            avisar('Correo con formato inválido', 'error'); return;
+        }
+
+        const sel = clienteElegido();
+        const btn = $('prs-f-crear');
         btn.disabled = true;
 
         try {
-            const eid = window.appData.usuario.empresa_id;
-
-            const { data: max } = await db.from('taller_presupuestos')
-                .select('numero').eq('empresa_id', eid)
-                .order('numero', { ascending: false }).limit(1);
-            const numero = (max?.[0]?.numero || 0) + 1;
-
-            const { data: creado, error } = await db.from('taller_presupuestos').insert({
-                empresa_id:   eid,
-                numero,
-                version:      1,
-                cliente_id:   clienteId,
-                vehiculo_id:  vehiculoId,
-                estado:       'borrador',
-                fecha_emision: _hoy(),
-                dias_validez: Number(document.getElementById('prs-f-validez').value) || 15,
-                kilometraje:  Number(document.getElementById('prs-f-km').value) || null,
-                motivo,
-                diagnostico:  document.getElementById('prs-f-diagnostico').value.trim() || null,
-                usuario_rut:  window.appData.usuario.rut
-            }).select().single();
+            const { data, error } = await db.rpc('fn_taller_presupuesto_crear', {
+                p_empresa_id: window.appData.usuario.empresa_id,
+                p_cliente: {
+                    id: sel?.id || null, nombre, rut: rut || null,
+                    telefono: v('prs-f-tel'), email: v('prs-f-email'), direccion: v('prs-f-dir')
+                },
+                p_vehiculo: {
+                    patente, marca: v('prs-f-marca'), modelo: v('prs-f-modelo'),
+                    anio: v('prs-f-anio'), color: v('prs-f-color'), vin: v('prs-f-vin')
+                },
+                p_km:          $('prs-f-km').value === '' ? null : Number($('prs-f-km').value),
+                p_validez:     Number($('prs-f-validez').value) || 15,
+                p_motivo:      motivo,
+                p_diagnostico: v('prs-f-diagnostico') || null,
+                p_canal:       $('prs-f-canal').value,
+                p_usuario:     window.appData.usuario.rut
+            });
             if (error) throw error;
+            if (!data?.ok) { avisar(data?.error || 'No se pudo crear el presupuesto', 'error'); btn.disabled = false; return; }
 
-            avisar(`Presupuesto N° ${numero} creado`);
+            avisar(`Presupuesto N° ${data.numero} creado — cliente y vehículo guardados`);
             cerrarModal();
             await recargar();
-            abrirDetalle(_lista.find(p => p.id === creado.id));
+            abrirDetalle(_lista.find(p => p.id === data.presupuesto_id));
         } catch (err) {
             console.error('[Presupuestos] crear:', err);
             btn.disabled = false;
-            avisar('Error al crear el presupuesto', 'error');
+            avisar(err.code === 'PGRST202' || err.code === '42883'
+                ? 'Falta ejecutar sql/44_presupuesto_completo.sql'
+                : 'Error al crear el presupuesto. Revisa la consola.', 'error');
         }
     }
 
@@ -351,6 +463,9 @@ const ModuloPresupuestos = (() => {
         if (!p) return;
         _abierto = p;
 
+        await _cargarFicha(p);
+        const cli = p._cli || {};
+        const veh = p._veh || {};
         const editable = ['borrador', 'enviado'].includes(p.estado);
 
         abrirModal(`
@@ -366,12 +481,16 @@ const ModuloPresupuestos = (() => {
                 <label>Vehículo</label>
                 <div style="font-family:var(--font-mono)">${esc(p.patente) || '—'}</div>
                 <div style="font-size:0.75rem;color:var(--text-secondary)">
-                    ${esc([p.marca, p.modelo].filter(Boolean).join(' '))}</div>
+                    ${esc([p.marca, p.modelo, veh.anio, veh.color].filter(Boolean).join(' · '))}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted)">
+                    ${veh.vin ? 'VIN ' + esc(veh.vin) : ''}${veh.vin && p.kilometraje ? ' · ' : ''}${p.kilometraje ? Number(p.kilometraje).toLocaleString('es-CL') + ' km' : ''}</div>
             </div>
             <div class="tll-field">
                 <label>Cliente</label>
-                <div>${esc(p.cliente_nombre) || '—'}</div>
-                <div style="font-size:0.75rem;color:var(--text-secondary)">${esc(p.cliente_telefono) || ''}</div>
+                <div>${esc(p.cliente_nombre) || '—'}${cli.rut ? ` <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-secondary)">${esc(cli.rut)}</span>` : ''}</div>
+                <div style="font-size:0.75rem;color:var(--text-secondary)">
+                    ${esc([p.cliente_telefono, p.cliente_email].filter(Boolean).join(' · '))}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted)">${esc(cli.direccion || '')}</div>
             </div>
             <div class="tll-field">
                 <label>Vigencia</label>
@@ -388,7 +507,7 @@ const ModuloPresupuestos = (() => {
         ${p.estado === 'aprobado' ? `
         <div class="tll-recep-found" style="margin-bottom:0.8rem">
             Aprobado por <strong>${esc(p.aprobado_por) || 'el cliente'}</strong>
-            ${p.aprobado_via ? `(${esc(VIAS.find(v => v[0] === p.aprobado_via)?.[1] || p.aprobado_via)})` : ''}
+            ${p.aprobado_via ? `(${esc(VIAS_ETIQ[p.aprobado_via] || p.aprobado_via)})` : ''}
             el ${fmtFechaHora(p.aprobado_at)}.
         </div>` : ''}
         ${p.estado === 'rechazado' && p.motivo_rechazo ? `
@@ -456,8 +575,12 @@ const ModuloPresupuestos = (() => {
         <div class="tll-ot-totales" id="prs-totales" style="flex-direction:column;align-items:stretch"></div>
 
         <div class="tll-modal-footer">
-            <button class="tll-btn tll-btn--ghost" id="prs-imprimir">🖨 Imprimir</button>
-            ${editable ? `<button class="tll-btn tll-btn--ghost" id="prs-enviar">Marcar enviado</button>` : ''}
+            <button class="tll-btn tll-btn--ghost" id="prs-ver">👁 Ver documento</button>
+            <button class="tll-btn tll-btn--ghost" id="prs-imprimir">🖨 Imprimir / PDF</button>
+            ${p.estado === 'borrador' ? `<button class="tll-btn tll-btn--primary" id="prs-enviar">📤 Enviar al cliente</button>` : ''}
+            ${p.estado === 'enviado' ? `<button class="tll-btn tll-btn--ghost" id="prs-enviar">📤 Reenviar</button>
+                <button class="tll-btn tll-btn--ghost" id="prs-copiar">🔗 Copiar enlace</button>
+                <button class="tll-btn tll-btn--ghost" id="prs-wa">💬 WhatsApp</button>` : ''}
             ${['borrador', 'enviado'].includes(p.estado) && !p.vencido
                 ? `<button class="tll-btn tll-btn--primary" id="prs-aprobar">✓ Cliente aprobó</button>
                    <button class="tll-btn tll-btn--danger" id="prs-rechazar">Rechazó</button>` : ''}
@@ -483,9 +606,12 @@ const ModuloPresupuestos = (() => {
                 if (o?.dataset.costo)  document.getElementById('prs-i-costo').value  = o.dataset.costo;
             });
             document.getElementById('prs-i-agregar').addEventListener('click', _agregarItem);
-            document.getElementById('prs-enviar').addEventListener('click', () => _responder('enviado'));
         }
 
+        document.getElementById('prs-enviar')?.addEventListener('click', _abrirEnvio);
+        document.getElementById('prs-copiar')?.addEventListener('click', _copiarEnlace);
+        document.getElementById('prs-wa')?.addEventListener('click', _abrirWhatsApp);
+        document.getElementById('prs-ver').addEventListener('click', _verDocumento);
         document.getElementById('prs-imprimir').addEventListener('click', _imprimir);
         document.getElementById('prs-aprobar')?.addEventListener('click', _abrirAprobacion);
         document.getElementById('prs-rechazar')?.addEventListener('click', _abrirRechazo);
@@ -688,8 +814,7 @@ const ModuloPresupuestos = (() => {
         if (!res) return false;
         if (!res.ok) { avisar(res.error || 'No se pudo registrar', 'error'); return false; }
 
-        avisar({ enviado: 'Presupuesto marcado como enviado',
-                 aprobado: 'Aprobación registrada — ya puedes convertirlo en OT',
+        avisar({ aprobado: 'Aprobación registrada — ya puedes convertirlo en OT',
                  rechazado: 'Rechazo registrado' }[respuesta]);
         cerrarModal();
         await recargar();
@@ -830,108 +955,213 @@ const ModuloPresupuestos = (() => {
         abrirDetalle(_lista.find(p => p.id === res.presupuesto_id));
     }
 
-    // ── Impresión ─────────────────────────────────────────────────
-    function _imprimir() {
+    // ── Ficha, documento y envío ──────────────────────────────────
+    /** Cliente, vehículo y datos de envío del presupuesto (la vista no los trae). */
+    async function _cargarFicha(p) {
+        const [cli, veh, ext, vin] = await Promise.all([
+            p.cliente_id  ? db.from('taller_clientes').select('*').eq('id', p.cliente_id).maybeSingle() : null,
+            p.vehiculo_id ? db.from('taller_vehiculos').select('*').eq('id', p.vehiculo_id).maybeSingle() : null,
+            db.from('taller_presupuestos').select('token_publico, url_publica, canal_aviso').eq('id', p.id).maybeSingle(),
+            p.vehiculo_id ? db.from('v_taller_vinculos').select('estado')
+                .eq('taller_vehiculo_id', p.vehiculo_id).eq('estado', 'activo').limit(1) : null
+        ]);
+        p._cli   = cli?.data || null;
+        p._veh   = veh?.data || null;
+        p._ext   = ext?.data || {};
+        p._appOk = (vin?.data || []).length > 0;
+    }
+
+    /** El mismo JSON que arma fn_presupuesto_documento (sin costos ni márgenes). */
+    function _datosDoc(p) {
+        const cfg = _cfg || {};
+        const emp = window.appData.empresa || {};
+        const items = (p._items || []).map(i => ({
+            tipo: i.tipo, descripcion: i.descripcion, cantidad: i.cantidad,
+            precio_unitario: i.precio_unitario, subtotal: i.subtotal, opcional: i.opcional
+        }));
+        return {
+            presupuesto_id: p.id, numero: p.numero, version: p.version, estado: p.estado,
+            vencido: !!p.vencido, fecha_emision: p.fecha_emision, fecha_vencimiento: p.fecha_vencimiento,
+            dias_validez: p.dias_validez, kilometraje: p.kilometraje, motivo: p.motivo,
+            diagnostico: p.diagnostico, condiciones: p.condiciones || cfg.condiciones_presupuesto || null,
+            neto: p.neto, iva: p.iva, total: p.total,
+            aprobado_por: p.aprobado_por, aprobado_at: p.aprobado_at,
+            taller: {
+                nombre: emp.nombre, logo_url: emp.logo_url, rut: cfg.rut, giro: cfg.giro,
+                direccion: cfg.direccion, comuna: cfg.comuna, ciudad: cfg.ciudad,
+                telefono: cfg.telefono, whatsapp: cfg.whatsapp, email: cfg.email,
+                sitio_web: cfg.sitio_web, pie: cfg.pie_documentos
+            },
+            cliente: { nombre: p.cliente_nombre, rut: p._cli?.rut, telefono: p.cliente_telefono,
+                       email: p.cliente_email, direccion: p._cli?.direccion },
+            vehiculo: { patente: p.patente, marca: p.marca, modelo: p.modelo, anio: p._veh?.anio,
+                        color: p._veh?.color, vin: p._veh?.vin },
+            items
+        };
+    }
+
+    /** Vista previa: lo que verá el cliente. */
+    function _verDocumento() {
         const p = _abierto;
-        const items = p._items || [];
-        const incluidos = items.filter(i => !i.opcional);
-        const opcionales = items.filter(i => i.opcional);
-        const total = incluidos.reduce((s, i) => s + _num(i.subtotal), 0);
-        const neto  = Math.round(total / (1 + IVA_TASA));
+        abrirModal(`
+        <div class="tll-modal-header">
+            <h3>Así lo ve el cliente · N° ${esc(p.numero)}</h3>
+            <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+        <div style="background:#e5e7eb;border-radius:8px;padding:10px;max-height:70vh;overflow:auto">
+            ${PresupuestoDoc.html(_datosDoc(p))}
+        </div>
+        <div class="tll-modal-footer">
+            <button class="tll-btn tll-btn--ghost" id="prs-v-volver">‹ Volver</button>
+            <button class="tll-btn tll-btn--primary" id="prs-v-imprimir">🖨 Imprimir / PDF</button>
+        </div>`, '920px');
 
-        const filas = (arr) => arr.map(i => `
-            <tr>
-                <td>${esc(i.descripcion)}</td>
-                <td class="r">${_fmtCant(i.cantidad)}</td>
-                <td class="r">${fmtCLP(i.precio_unitario)}</td>
-                <td class="r">${fmtCLP(i.subtotal)}</td>
-            </tr>`).join('');
+        document.getElementById('prs-v-volver').addEventListener('click', () => abrirDetalle(p));
+        document.getElementById('prs-v-imprimir').addEventListener('click', _imprimir);
+    }
 
-        const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-        <title>Presupuesto ${esc(p.numero)}</title>
-        <style>
-            body { font-family: system-ui, -apple-system, sans-serif; color:#111; margin:32px; font-size:13px; }
-            h1 { font-size:20px; margin:0 0 2px; }
-            .sub { color:#666; font-size:12px; margin-bottom:20px; }
-            .caja { border:1px solid #ddd; border-radius:6px; padding:12px 14px; margin-bottom:16px; }
-            .cols { display:flex; gap:24px; }
-            .cols > div { flex:1; }
-            .lbl { color:#666; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; }
-            table { width:100%; border-collapse:collapse; margin-top:8px; }
-            th { text-align:left; font-size:11px; text-transform:uppercase; color:#666;
-                 border-bottom:1px solid #ddd; padding:6px 4px; }
-            td { padding:6px 4px; border-bottom:1px solid #f0f0f0; }
-            .r { text-align:right; }
-            .tot { margin-top:14px; margin-left:auto; width:260px; }
-            .tot div { display:flex; justify-content:space-between; padding:3px 0; }
-            .tot .big { font-size:16px; font-weight:700; border-top:2px solid #111;
-                        margin-top:6px; padding-top:8px; }
-            .opc { margin-top:22px; }
-            .opc h3 { font-size:13px; margin:0 0 4px; }
-            .nota { margin-top:26px; font-size:11px; color:#666; line-height:1.6;
-                    border-top:1px solid #ddd; padding-top:12px; }
-            .firma { margin-top:44px; display:flex; gap:40px; }
-            .firma div { flex:1; border-top:1px solid #999; padding-top:6px;
-                         font-size:11px; color:#666; text-align:center; }
-            @media print { body { margin:0; } }
-        </style></head><body>
-            <h1>Presupuesto N° ${esc(p.numero)}${p.version > 1 ? ' · v' + p.version : ''}</h1>
-            <div class="sub">${esc(window.appData.empresa?.nombre || 'Taller')} ·
-                Emitido ${fmtFecha(p.fecha_emision)} ·
-                Válido hasta ${fmtFecha(p.fecha_vencimiento)}</div>
+    function _imprimir() {
+        if (!PresupuestoDoc.imprimir(_datosDoc(_abierto))) {
+            avisar('El navegador bloqueó la ventana de impresión', 'error');
+        }
+    }
 
-            <div class="caja cols">
-                <div>
-                    <div class="lbl">Cliente</div>
-                    <div>${esc(p.cliente_nombre) || '—'}</div>
-                    <div>${esc(p.cliente_telefono) || ''}</div>
-                </div>
-                <div>
-                    <div class="lbl">Vehículo</div>
-                    <div>${esc(p.patente) || '—'} · ${esc([p.marca, p.modelo].filter(Boolean).join(' '))}</div>
-                    <div>${p.kilometraje ? _fmtCant(p.kilometraje) + ' km' : ''}</div>
-                </div>
+    /** Enlace que recibe el cliente (presupuesto.html está junto a app.html). */
+    function _urlPublica(token) {
+        const base = location.href.split(/[?#]/)[0].replace(/[^/]*$/, '');
+        return `${base}presupuesto.html?t=${token}`;
+    }
+
+    async function _copiarEnlace() {
+        const token = _abierto._ext?.token_publico;
+        if (!token) { avisar('Este presupuesto aún no tiene enlace. Falta ejecutar sql/44.', 'error'); return; }
+        const url = _abierto._ext.url_publica || _urlPublica(token);
+        try {
+            await navigator.clipboard.writeText(url);
+            avisar('Enlace copiado');
+        } catch {
+            prompt('Copia el enlace del presupuesto:', url);
+        }
+    }
+
+    /** WhatsApp "a mano": abre el chat con el cliente y el mensaje ya escrito, con el
+        enlace del presupuesto. No depende del envío automático (API de Meta). */
+    function _abrirWhatsApp() {
+        const p = _abierto;
+        let tel = String(p.cliente_telefono || '').replace(/\D/g, '');
+        if (tel.length === 9 && tel.startsWith('9')) tel = '56' + tel;
+        else if (tel.length === 8) tel = '569' + tel;
+        if (tel.length < 11) { avisar('El cliente no tiene un teléfono válido', 'error'); return; }
+
+        const token = p._ext?.token_publico;
+        if (!token) { avisar('Este presupuesto aún no tiene enlace. Falta ejecutar sql/44.', 'error'); return; }
+        const url = p._ext.url_publica || _urlPublica(token);
+        const taller = window.appData.empresa?.nombre || 'el taller';
+
+        const texto = `Hola ${p.cliente_nombre || ''}, te envío el presupuesto N° ${p.numero} de ${taller} ` +
+            `por ${fmtCLP(p.total)}. Míralo completo y apruébalo aquí: ${url}`;
+        window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+    }
+
+    /** Pregunta cómo informar y manda el presupuesto (o lo reenvía). */
+    function _abrirEnvio() {
+        const p = _abierto;
+        const reenvio = p.estado === 'enviado';
+
+        if (!(Number(p.total) > 0)) { avisar('Agrega al menos un ítem con precio antes de enviarlo', 'error'); return; }
+
+        const inicial = p._ext?.canal_aviso || p._cli?.canal_pref || 'ambos';
+        const tel = p.cliente_telefono;
+        const app = p._appOk;
+
+        abrirModal(`
+        <div class="tll-modal-header">
+            <h3>${reenvio ? 'Reenviar' : 'Enviar'} presupuesto N° ${esc(p.numero)}</h3>
+            <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+        <div class="placeholder-text" style="padding:0.8rem 1rem;text-align:left">
+            <strong>${esc(p.cliente_nombre) || 'Cliente'}</strong> · ${esc(p.patente) || ''} ·
+            <strong>${fmtCLP(p.total)}</strong>
+        </div>
+        <div class="tll-form-grid">
+            <div class="tll-field tll-field--full">
+                <label>Cómo informar al cliente</label>
+                <select class="tll-select" id="prs-e-canal">
+                    ${CANAL_AVISO.map(([v, t]) =>
+                        `<option value="${v}" ${v === inicial ? 'selected' : ''}>${t}</option>`).join('')}
+                </select>
             </div>
-
-            ${p.motivo ? `<div class="caja"><div class="lbl">Motivo</div>${esc(p.motivo)}</div>` : ''}
-            ${p.diagnostico ? `<div class="caja"><div class="lbl">Diagnóstico</div>${esc(p.diagnostico)}</div>` : ''}
-
-            <table>
-                <thead><tr><th>Detalle</th><th class="r">Cant.</th>
-                    <th class="r">P. unitario</th><th class="r">Subtotal</th></tr></thead>
-                <tbody>${filas(incluidos)}</tbody>
-            </table>
-
-            <div class="tot">
-                <div><span>Neto</span><span>${fmtCLP(neto)}</span></div>
-                <div><span>IVA ${Math.round(IVA_TASA * 100)}%</span><span>${fmtCLP(total - neto)}</span></div>
-                <div class="big"><span>Total</span><span>${fmtCLP(total)}</span></div>
+            <div class="tll-field tll-field--full" style="font-size:0.8rem;line-height:1.6">
+                <div>${app ? '✅' : '⚠️'} <strong>App:</strong> ${app
+                    ? 'el cliente tiene este vehículo vinculado y lo verá en la App.'
+                    : 'este vehículo aún no está vinculado a la App del cliente, así que por ahí no le llega. Vincúlalo en Vehículos → App.'}</div>
+                <div>${tel ? '✅' : '⚠️'} <strong>WhatsApp:</strong> ${tel
+                    ? `se envía a ${esc(tel)} con un enlace para ver el presupuesto completo.`
+                    : 'el cliente no tiene teléfono, por WhatsApp no le llega.'}</div>
             </div>
+        </div>
+        <div class="tll-modal-footer">
+            <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cancelar</button>
+            <button class="tll-btn tll-btn--primary" id="prs-e-ok">${reenvio ? 'Reenviar' : 'Enviar al cliente'}</button>
+        </div>`, '600px');
 
-            ${opcionales.length ? `
-            <div class="opc">
-                <h3>Trabajos opcionales recomendados (no incluidos en el total)</h3>
-                <table><tbody>${filas(opcionales)}</tbody></table>
-            </div>` : ''}
+        document.getElementById('prs-e-ok').addEventListener('click', () =>
+            _enviar(document.getElementById('prs-e-canal').value, reenvio));
+    }
 
-            <div class="nota">
-                ${p.condiciones ? esc(p.condiciones) + '<br>' : ''}
-                Este presupuesto tiene una validez de ${p.dias_validez} días desde su emisión.
-                Los precios pueden variar si cambia la disponibilidad de los repuestos.
-                Trabajos adicionales detectados durante la reparación se informarán antes de ejecutarse.
-            </div>
+    async function _enviar(canal, reenvio) {
+        const p = _abierto;
+        const btn = document.getElementById('prs-e-ok');
+        btn.disabled = true;
 
-            <div class="firma">
-                <div>Firma del cliente</div>
-                <div>${esc(window.appData.empresa?.nombre || 'Taller')}</div>
-            </div>
-        </body></html>`;
+        try {
+            const eid = window.appData.usuario.empresa_id;
+            const token = p._ext?.token_publico;
+            if (!token) throw Object.assign(new Error('sin token'), { code: 'SIN_SQL44' });
 
-        const w = window.open('', '_blank');
-        if (!w) { avisar('El navegador bloqueó la ventana de impresión', 'error'); return; }
-        w.document.write(html);
-        w.document.close();
-        setTimeout(() => w.print(), 300);
+            // Canal y enlace van en el presupuesto: el aviso los lee de ahí
+            const { error: eUp } = await db.from('taller_presupuestos')
+                .update({ canal_aviso: canal, url_publica: _urlPublica(token) }).eq('id', p.id);
+            if (eUp) throw eUp;
+
+            let canales;
+            if (reenvio) {
+                const { data, error } = await db.rpc('fn_taller_presupuesto_reenviar', {
+                    p_empresa_id: eid, p_presupuesto_id: p.id, p_canal: canal });
+                if (error) throw error;
+                if (!data?.ok) { avisar(data?.error || 'No se pudo reenviar', 'error'); btn.disabled = false; return; }
+                canales = data.canales || [];
+            } else {
+                const { data, error } = await db.rpc('fn_responder_presupuesto', {
+                    p_empresa_id: eid, p_presupuesto_id: p.id, p_respuesta: 'enviado' });
+                if (error) throw error;
+                if (!data?.ok) { avisar(data?.error || 'No se pudo enviar', 'error'); btn.disabled = false; return; }
+                // El trigger arma el aviso: ver por dónde salió
+                const { data: ev } = await db.from('taller_notificacion_eventos')
+                    .select('taller_notificaciones(canal)').eq('presupuesto_id', p.id)
+                    .order('creado_at', { ascending: false }).limit(1);
+                canales = (ev?.[0]?.taller_notificaciones || []).map(n => n.canal);
+            }
+
+            const nombres = [...new Set(canales)].map(c => CANAL_NOMBRE[c] || c);
+            if (canal === 'ninguno') {
+                avisar(reenvio ? 'Nada que reenviar: elegiste no avisar'
+                               : 'Presupuesto marcado como enviado (sin aviso). Entrégaselo en persona o copia el enlace.');
+            } else if (nombres.length === 0) {
+                avisar('Quedó enviado, pero al cliente no le llega por ningún canal: sin App vinculada ni teléfono.', 'error');
+            } else {
+                avisar(`Presupuesto ${reenvio ? 'reenviado' : 'enviado'} por ${nombres.join(' y ')}`);
+            }
+            cerrarModal();
+            await recargar();
+            abrirDetalle(_lista.find(x => x.id === p.id));
+        } catch (err) {
+            console.error('[Presupuestos] enviar:', err);
+            btn.disabled = false;
+            avisar(err.code === 'SIN_SQL44' || err.code === 'PGRST202' || err.code === '42883' || err.code === '42703'
+                ? 'Falta ejecutar sql/44_presupuesto_completo.sql'
+                : 'No se pudo enviar. Revisa la consola.', 'error');
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────

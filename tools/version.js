@@ -24,7 +24,7 @@ const fs   = require('fs');
 const path = require('path');
 
 const ROOT  = path.resolve(__dirname, '..');
-const HTMLS = ['app.html', 'login.html', 'index.html'];
+const HTMLS = ['app.html', 'login.html', 'index.html', 'presupuesto.html'];
 
 const arg = process.argv[2];
 

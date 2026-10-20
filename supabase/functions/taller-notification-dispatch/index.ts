@@ -22,8 +22,11 @@
 //
 //   arm_taller_presupuesto  Cuerpo: "Hola, *{{1}}* te envió el presupuesto
 //                                    N° {{2}} por un total de {{3}}.
+//                                    Míralo completo aquí: {{4}}
 //                                    ¿Lo apruebas?"
 //                           Botones de respuesta rápida: "Apruebo", "Rechazo"
+//                           {{4}} es el enlace a presupuesto.html (sql/44): ahí el
+//                           cliente ve el documento y también lo puede aprobar.
 //
 // Variables de entorno (Supabase → Edge Functions → Secrets):
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   (las pone Supabase)
@@ -66,7 +69,7 @@ interface Pendiente {
   tipo: string;
   taller: string;
   presupuesto_id: string | null;
-  payload: { numero?: number; total?: number } | null;
+  payload: { numero?: number; total?: number; url?: string | null } | null;
 }
 
 /** Meta rechaza parámetros vacíos, con saltos de línea, tabs o más de 4
@@ -89,8 +92,9 @@ function telefonoWa(tel: string): string {
 }
 
 function textoLibre(n: Pendiente): string {
+  const enlace = n.payload?.url ? `\nMíralo completo: ${n.payload.url}` : "";
   const pie = n.tipo === "presupuesto_enviado"
-    ? '\n\nResponde "APRUEBO" o "RECHAZO" a este mensaje.'
+    ? `${enlace}\n\nResponde "APRUEBO" o "RECHAZO" a este mensaje.`
     : "";
   return `*${n.taller}*\n${n.titulo}${n.detalle ? `\n${n.detalle}` : ""}${pie}`;
 }
@@ -118,6 +122,8 @@ function mensaje(n: Pendiente, to: string): Record<string, unknown> {
               { type: "text", text: param(n.taller) },
               { type: "text", text: param(n.payload?.numero) },
               { type: "text", text: param(clp(n.payload?.total)) },
+              // Enlace a presupuesto.html (sql/44): el documento completo
+              { type: "text", text: param(n.payload?.url, 300) },
             ],
           },
           // El payload del botón lleva el presupuesto exacto: así la
