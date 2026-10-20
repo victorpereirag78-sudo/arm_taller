@@ -932,6 +932,7 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
 .tll-modal-cerrar:hover { color: var(--text-primary); background: var(--bg-hover); }
 .tll-modal-footer {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: 0.6rem;
     margin-top: 1.2rem;
@@ -1416,3 +1417,41 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
 }
 /* Las celdas con muchos chips necesitan aire vertical */
 .tll-tabla td.tll-td-chips { padding-top: 0.7rem; padding-bottom: 0.7rem; }
+
+
+/* ── Presupuesto: formulario de ítems ────────────────────────────── */
+.prs-item-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    align-items: end;
+    margin-top: 0.8rem;
+}
+.prs-span2 { grid-column: span 2; }
+.prs-opcional { align-self: center; }
+.prs-agregar { grid-column: span 2; }
+
+/* ── Modales en el móvil ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .tll-modal-overlay { padding: 2vh 0.5rem; }
+    .tll-modal { padding: 1rem 0.85rem; }
+    .tll-modal-header { margin-bottom: 0.8rem; }
+    .tll-modal-header h3 { font-size: 0.98rem; }
+    .tll-form-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 0.65rem; }
+
+    /* Botones del pie: en grilla de 2, nunca cortados */
+    .tll-modal-footer { justify-content: stretch; gap: 0.5rem; }
+    .tll-modal-footer .tll-btn { flex: 1 1 calc(50% - 0.5rem); min-width: 0; padding-left: 0.5rem; padding-right: 0.5rem; }
+    .tll-modal-footer .tll-toolbar-sep { display: none; }
+
+    /* Ítems del presupuesto */
+    .prs-item-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .prs-item-grid > .tll-field:first-child,
+    .prs-span2,
+    .prs-agregar { grid-column: 1 / -1; }
+    #prs-items { overflow-x: auto; }
+    #prs-items .tll-tabla th, #prs-items .tll-tabla td { padding: 0.5rem 0.4rem; font-size: 0.76rem; }
+    #prs-items .tll-tabla th:nth-child(5), #prs-items .tll-tabla td:nth-child(5) { display: none; } /* margen */
+    #prs-items .tll-btn { padding: 0.3rem 0.5rem; font-size: 0.72rem; }
+    .tll-ot-totales { gap: 0.6rem; }
+}

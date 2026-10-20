@@ -525,7 +525,7 @@ const ModuloPresupuestos = (() => {
         <div id="prs-items"></div>
 
         ${editable ? `
-        <div class="tll-form-grid" style="margin-top:0.8rem;align-items:end">
+        <div class="prs-item-grid">
             <div class="tll-field">
                 <label>Tipo</label>
                 <select class="tll-select" id="prs-i-tipo">
@@ -533,7 +533,7 @@ const ModuloPresupuestos = (() => {
                     <option value="mano_obra">Mano de obra</option>
                 </select>
             </div>
-            <div class="tll-field tll-field--full" id="prs-i-rep-wrap" style="grid-column:span 2">
+            <div class="tll-field prs-span2" id="prs-i-rep-wrap">
                 <label>Repuesto</label>
                 <select class="tll-select" id="prs-i-repuesto">
                     <option value="">— Selecciona —</option>
@@ -545,7 +545,7 @@ const ModuloPresupuestos = (() => {
                 </select>
                 <span class="tll-field-msg">Cotizar no descuenta stock. Se descuenta al convertir en OT.</span>
             </div>
-            <div class="tll-field tll-field--full oculto" id="prs-i-desc-wrap" style="grid-column:span 2">
+            <div class="tll-field prs-span2 oculto" id="prs-i-desc-wrap">
                 <label>Descripción</label>
                 <input class="tll-input" id="prs-i-descripcion" placeholder="Ej: desarme y cambio de embrague">
             </div>
@@ -561,13 +561,12 @@ const ModuloPresupuestos = (() => {
                 <label>Costo unit.</label>
                 <input class="tll-input" id="prs-i-costo" type="number" min="0" value="0">
             </div>
-            <div class="tll-field">
-                <label class="tll-check" style="margin-top:1.4rem">
+            <div class="tll-field prs-opcional">
+                <label class="tll-check">
                     <input type="checkbox" id="prs-i-opcional"> Opcional
                 </label>
             </div>
-            <div class="tll-field">
-                <label>&nbsp;</label>
+            <div class="tll-field prs-agregar">
                 <button class="tll-btn tll-btn--primary" id="prs-i-agregar" style="width:100%">+ Agregar</button>
             </div>
         </div>` : ''}
@@ -629,6 +628,12 @@ const ModuloPresupuestos = (() => {
             if (error) throw error;
 
             _abierto._items = items || [];
+
+            // La vista de la lista quedó vieja si se agregaron ítems: traer los totales al día
+            const { data: tot } = await db.from('v_taller_presupuestos')
+                .select('neto, iva, total, costo, margen, margen_pct').eq('id', _abierto.id).maybeSingle();
+            if (tot) Object.assign(_abierto, tot);
+
             const editable = ['borrador', 'enviado'].includes(_abierto.estado);
 
             if (!items || items.length === 0) {
