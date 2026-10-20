@@ -1456,14 +1456,23 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
     .tll-ot-totales { gap: 0.6rem; }
 }
 
-/* ── Presupuesto: pie del detalle (herramientas a la izquierda, acciones a la derecha) ── */
-.prs-pie { justify-content: space-between; align-items: center; gap: 0.6rem 1.2rem; }
-.prs-pie-g { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.prs-pie-g:last-child { margin-left: auto; justify-content: flex-end; }
+/* ── Presupuesto: pie del detalle ───────────────────────────────────
+   Dos filas ordenadas en casilleros iguales (5 por fila): arriba las
+   herramientas, abajo las acciones, alineadas a la derecha. */
+.prs-pie { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+.prs-pie-g { display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%; }
+.prs-pie-g:last-child { justify-content: flex-end; }
+.prs-pie .prs-pie-g .tll-btn {
+    flex: 0 0 calc((100% - 4 * 0.5rem) / 5);
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
+    padding-left: 0.4rem; padding-right: 0.4rem;
+}
 .prs-opcional label { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0;
     font-family: var(--font-body); font-size: 0.82rem; letter-spacing: 0; text-transform: none;
     color: var(--text-secondary); cursor: pointer; }
 @media (max-width: 640px) {
-    .prs-pie-g { flex: 1 1 100%; }
-    .prs-pie-g:last-child { margin-left: 0; }
+    .prs-pie .prs-pie-g .tll-btn { flex: 0 0 calc((100% - 0.5rem) / 2); white-space: normal; }
+    .prs-pie-g:last-child { justify-content: stretch; }
 }
