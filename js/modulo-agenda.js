@@ -167,20 +167,24 @@ const ModuloAgenda = (() => {
                         · pedida ${fmtFecha(s.creado_at)}
                     </div>
                     <div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">
-                        <button class="tll-btn tll-btn--primary sol-agendar" data-id="${s.id}">Agendar</button>
+                        <button class="tll-btn tll-btn--primary sol-agendar" data-id="${s.id}">Agendar / proponer fecha</button>
                         ${s.telefono ? `<a class="tll-btn tll-btn--ghost" href="https://wa.me/${esc((s.telefono || '').replace(/\D/g, ''))}" target="_blank">WhatsApp</a>` : ''}
                         ${s.estado === 'nueva' ? `<button class="tll-btn tll-btn--ghost sol-contactado" data-id="${s.id}">Marcar contactado</button>` : ''}
+                        <button class="tll-btn tll-btn--ghost sol-sincupo" data-id="${s.id}">Sin cupo</button>
                         <button class="tll-btn tll-btn--ghost sol-descartar" data-id="${s.id}">Descartar</button>
                     </div>
                 </div>`).join('')}
             </div>
-            <p class="tll-rep-nota">Al agendar, crea la cita con <strong>+ Nueva cita</strong>. Convertirla en cita automáticamente llega en una próxima versión.</p>
+            <p class="tll-rep-nota">El cliente <strong>pide</strong> una hora, no la toma. Mira el cupo y agéndala (si pones otra fecha, el cliente recibe una propuesta que confirma o cancela desde la app), o usa <strong>Sin cupo</strong> para avisarle con un mensaje. <strong>Descartar</strong> la quita sin avisar.</p>
         </details>`;
 
         cont.querySelectorAll('.sol-contactado').forEach(b =>
             b.addEventListener('click', () => _marcarSolicitud(b.dataset.id, 'contactado')));
         cont.querySelectorAll('.sol-descartar').forEach(b =>
             b.addEventListener('click', () => _marcarSolicitud(b.dataset.id, 'descartada')));
+        cont.querySelectorAll('.sol-sincupo').forEach(b =>
+            b.addEventListener('click', () =>
+                _sinCupoSolicitud(_solicitudes.find(x => x.id === b.dataset.id))));
         cont.querySelectorAll('.sol-agendar').forEach(b =>
             b.addEventListener('click', () =>
                 _agendarSolicitud(_solicitudes.find(s => s.id === b.dataset.id))));
@@ -201,7 +205,7 @@ const ModuloAgenda = (() => {
         <div class="tll-form-grid">
             <div class="tll-field">
                 <label>Fecha *</label>
-                <input class="tll-input" id="sol-a-fecha" type="date" value="${s.fecha_preferida || _hoy()}">
+                <input class="tll-input" id="sol-a-fecha" type="date" min="${_hoy()}" value="${(s.fecha_preferida && s.fecha_preferida >= _hoy()) ? s.fecha_preferida : _hoy()}">
             </div>
             <div class="tll-field">
                 <label>Hora *</label>
@@ -214,14 +218,22 @@ const ModuloAgenda = (() => {
             <div class="tll-field">
                 <label>Bahía</label>
                 <select class="tll-select" id="sol-a-bahia">
-                    <option value="">— Sin asignar —</option>${bahiasOpt}
+                    <option value="">— Automática (una libre) —</option>${bahiasOpt}
                 </select>
             </div>
         </div>
+        <div id="sol-a-disp" style="font-size:0.85rem;margin-top:0.6rem"></div>
+        <p style="color:var(--text-muted);font-size:0.8rem;margin-top:0.4rem">
+            El cliente recibe la hora para confirmarla o cancelarla. Si eliges una fecha distinta a la que pidió, le llega como propuesta.
+        </p>
         <div class="tll-modal-footer">
             <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cancelar</button>
-            <button class="tll-btn tll-btn--primary" id="sol-a-guardar">Crear cita</button>
+            <button class="tll-btn tll-btn--primary" id="sol-a-guardar">Agendar y avisar al cliente</button>
         </div>`);
+
+        ['sol-a-fecha', 'sol-a-hora', 'sol-a-dur'].forEach(id =>
+            document.getElementById(id).addEventListener('input', _mostrarDisponibilidad));
+        _mostrarDisponibilidad();
 
         document.getElementById('sol-a-guardar').addEventListener('click', async () => {
             const btn = document.getElementById('sol-a-guardar');
@@ -240,7 +252,91 @@ const ModuloAgenda = (() => {
                 avisar((data && data.error) || 'No se pudo agendar', 'error');
                 return;
             }
-            avisar('Cita creada y cliente avisado');
+            avisar(data.propuesta ? 'Propuesta enviada: el cliente debe confirmar la nueva fecha' : 'Cita creada y cliente avisado');
+            cerrarModal();
+            await recargar();
+        });
+    }
+
+    // ¿Hay cupo ese día y a esa hora? La capacidad es la bahía: cada cita
+    // que se cruza con el tramo ocupa una.
+    async function _mostrarDisponibilidad() {
+        const box = document.getElementById('sol-a-disp');
+        if (!box) return;
+        const fecha = document.getElementById('sol-a-fecha')?.value;
+        const hora  = document.getElementById('sol-a-hora')?.value;
+        const dur   = Number(document.getElementById('sol-a-dur')?.value) || 60;
+        if (!fecha || !hora) { box.innerHTML = ''; return; }
+
+        const { data, error } = await db.from('taller_citas')
+            .select('hora_inicio, duracion_min, estado')
+            .eq('empresa_id', window.appData.usuario.empresa_id)
+            .eq('fecha', fecha)
+            .not('estado', 'in', '(cancelada,no_asistio)')
+            .order('hora_inicio');
+        // Si el usuario cambió la fecha mientras tanto, esta respuesta ya no vale.
+        if (document.getElementById('sol-a-fecha')?.value !== fecha) return;
+        if (error) { box.innerHTML = ''; return; }
+
+        const min = h => { const [a, b] = String(h).split(':'); return Number(a) * 60 + Number(b); };
+        const ini = min(hora), fin = ini + dur;
+        const citas = data || [];
+        const cruzan = citas.filter(c => ini < min(c.hora_inicio) + c.duracion_min && min(c.hora_inicio) < fin);
+        const total = _bahias.length;
+        const libres = total - cruzan.length;
+
+        let estado = '';
+        if (total === 0) {
+            estado = '';
+        } else if (libres <= 0) {
+            estado = `<div style="color:#f87171">⚠️ <strong>Sin cupo</strong> a esa hora: las ${total} bahías están ocupadas. Prueba otra hora u otro día, o usa «Sin cupo» para avisarle al cliente.</div>`;
+        } else {
+            estado = `<div style="color:#34d399">✅ Hay cupo: ${libres} de ${total} bahía${total > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''} a esa hora.</div>`;
+        }
+        const lista = citas.length
+            ? `<div style="color:var(--text-muted);margin-top:0.3rem">Citas ese día: ${citas.map(c =>
+                `${esc(String(c.hora_inicio).slice(0, 5))} (${c.duracion_min} min)`).join(' · ')}</div>`
+            : `<div style="color:var(--text-muted);margin-top:0.3rem">Sin otras citas ese día.</div>`;
+        box.innerHTML = estado + lista;
+    }
+
+    // El taller dice «no tengo cupo» y el cliente se entera, con mensaje.
+    function _sinCupoSolicitud(s) {
+        if (!s) return;
+        abrirModal(`
+        <div class="tll-modal-header">
+            <h3>Sin cupo</h3>
+            <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.87rem">
+            ${esc(s.nombre) || '—'} · ${esc(s.patente || s.vehiculo_desc || '')}${s.fecha_preferida ? '<br>Pidió ' + fmtFecha(s.fecha_preferida) : ''}
+        </p>
+        <div class="tll-field">
+            <label>Mensaje para el cliente</label>
+            <textarea class="tll-input" id="sol-nc-msg" rows="3" maxlength="300"
+                placeholder="Ej: Esa semana estamos completos. Puedes pedir desde el lunes 2."></textarea>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.8rem">Le llega por la app (y por WhatsApp si está conectado). Si lo dejas vacío se envía un aviso genérico.</p>
+        <div class="tll-modal-footer">
+            <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cancelar</button>
+            <button class="tll-btn tll-btn--primary" id="sol-nc-enviar">Avisar al cliente</button>
+        </div>`);
+
+        document.getElementById('sol-nc-enviar').addEventListener('click', async () => {
+            const btn = document.getElementById('sol-nc-enviar');
+            btn.disabled = true;
+            const { data, error } = await db.rpc('fn_solicitud_sin_cupo', {
+                p_empresa_id: window.appData.usuario.empresa_id,
+                p_solicitud_id: s.id,
+                p_mensaje: document.getElementById('sol-nc-msg').value,
+                p_usuario: window.appData.usuario.rut
+            });
+            if (error || !data?.ok) {
+                btn.disabled = false;
+                avisar((data && data.error) || 'No se pudo enviar', 'error');
+                return;
+            }
+            avisar('Cliente avisado');
             cerrarModal();
             await recargar();
         });
