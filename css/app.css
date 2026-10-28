@@ -1476,3 +1476,119 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
     .prs-pie .prs-pie-g .tll-btn { flex: 0 0 calc((100% - 0.5rem) / 2); white-space: normal; }
     .prs-pie-g:last-child { justify-content: stretch; }
 }
+
+/* ── Catálogo en tarjetas (Ventas) y miniaturas (Inventario) ───────
+   La foto se sirve a 480 px (ver REPUESTO_IMG_PX en utils.js) y aquí
+   se muestra a ~170 px: 2.8× de margen, nítida en pantallas retina. */
+.tll-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.8rem;
+}
+.tll-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.55rem 0.55rem 0.7rem;
+    text-align: center;
+    font: inherit;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--transition), transform var(--transition), background var(--transition);
+}
+.tll-card:hover:not(:disabled) { border-color: var(--accent); background: var(--bg-hover); transform: translateY(-2px); }
+.tll-card:active:not(:disabled) { transform: translateY(0); }
+.tll-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tll-card--sin { opacity: 0.55; cursor: not-allowed; }
+
+.tll-card-img {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    background: #fff;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.tll-card-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.tll-card-sinfoto { font-size: 2.4rem; opacity: 0.35; filter: grayscale(1); }
+.tll-card-lleva {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    min-width: 1.5rem;
+    padding: 0.1rem 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border-radius: 999px;
+}
+.tll-card-precio { margin-top: 0.3rem; font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; }
+.tll-card-nombre {
+    font-size: 0.7rem;
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.6em;
+    overflow-wrap: anywhere;
+}
+.tll-card-stock {
+    align-self: center;
+    margin-top: 0.2rem;
+    padding: 0.12rem 0.6rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    border-radius: 999px;
+}
+.tll-card-stock.ok   { color: #34d399; background: rgba(52,211,153,0.12); }
+.tll-card-stock.poco { color: #fbbf24; background: rgba(251,191,36,0.12); }
+.tll-card-stock.sin  { color: #f87171; background: rgba(248,113,113,0.12); }
+
+/* Miniatura en la tabla de inventario */
+.tll-mini-img {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: #fff;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    font-size: 1.1rem;
+}
+.tll-mini-img img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Campo de foto en el formulario del repuesto */
+.tll-foto-campo { display: flex; align-items: center; gap: 1rem; }
+.tll-foto-prev {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 112px;
+    height: 112px;
+    background: #fff;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    font-size: 2.2rem;
+    color: #bbb;
+}
+.tll-foto-prev img { width: 100%; height: 100%; object-fit: contain; }
+.tll-foto-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.tll-foto-acciones .tll-field-msg { flex-basis: 100%; }
+
+@media (max-width: 520px) {
+    .tll-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+    .tll-foto-campo { flex-direction: column; align-items: flex-start; }
+}

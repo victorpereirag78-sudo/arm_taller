@@ -11,12 +11,15 @@
 
 const ModuloVentas = (() => {
 
+    const POR_PAGINA = 60;
+
     let _repuestos = [];
     let _clientes  = [];
     let _carro     = [];      // [{ tipo, codigo, descripcion, cantidad, precio_unitario, descuento, stock }]
     let _ventas    = [];      // ventas del día
     let _caja      = null;    // caja abierta, o null
     let _cobrando  = false;
+    let _verTope   = POR_PAGINA;   // tarjetas visibles; "Mostrar más" lo sube
 
     // ── Init ──────────────────────────────────────────────────────
     async function init() {
@@ -32,7 +35,7 @@ const ModuloVentas = (() => {
                                placeholder="Buscar repuesto por código, nombre o marca…" autofocus>
                         <button class="tll-btn tll-btn--ghost" id="ven-servicio">+ Servicio</button>
                     </div>
-                    <div id="ven-resultados" class="tll-tabla-wrap"></div>
+                    <div id="ven-resultados"></div>
                 </div>
 
                 <div class="tll-pos-carro">
@@ -78,7 +81,10 @@ const ModuloVentas = (() => {
             </div>
             <div id="ven-historial" class="tll-tabla-wrap"></div>`;
 
-        document.getElementById('ven-buscar').addEventListener('input', _renderCatalogo);
+        document.getElementById('ven-buscar').addEventListener('input', () => {
+            _verTope = POR_PAGINA;
+            _renderCatalogo();
+        });
         document.getElementById('ven-servicio').addEventListener('click', _agregarServicio);
         document.getElementById('ven-limpiar').addEventListener('click', () => {
             if (_carro.length && !confirm('¿Vaciar la venta actual?')) return;
@@ -97,7 +103,7 @@ const ModuloVentas = (() => {
 
             const [rRes, cRes] = await Promise.all([
                 db.from('taller_repuestos')
-                  .select('id, codigo, nombre, marca, unidad, stock, precio_venta, ubicacion')
+                  .select('id, codigo, nombre, marca, unidad, stock, precio_venta, ubicacion, imagen_url')
                   .eq('empresa_id', eid).eq('activo', true).order('nombre').range(0, 4999),
                 db.from('taller_clientes')
                   .select('id, nombre, rut')
@@ -170,12 +176,13 @@ const ModuloVentas = (() => {
 
         const q = (document.getElementById('ven-buscar')?.value || '').toLowerCase().trim();
 
-        const lista = (q
+        const filtrados = q
             ? _repuestos.filter(r =>
                 (r.codigo || '').toLowerCase().includes(q) ||
                 (r.nombre || '').toLowerCase().includes(q) ||
                 (r.marca || '').toLowerCase().includes(q))
-            : _repuestos).slice(0, 60);
+            : _repuestos;
+        const lista = filtrados.slice(0, _verTope);
 
         if (lista.length === 0) {
             cont.innerHTML = `<div class="placeholder-text">
@@ -187,32 +194,45 @@ const ModuloVentas = (() => {
         }
 
         cont.innerHTML = `
-        <table class="tll-tabla">
-            <thead><tr>
-                <th>Código</th><th>Repuesto</th>
-                <th style="text-align:right">Stock</th>
-                <th style="text-align:right">Precio</th><th></th>
-            </tr></thead>
-            <tbody>
-            ${lista.map(r => `
-                <tr>
-                    <td style="font-family:var(--font-mono)">${esc(r.codigo)}</td>
-                    <td>${esc(r.nombre)}
-                        ${r.marca ? `<div style="font-size:0.7rem;color:var(--text-secondary)">${esc(r.marca)}</div>` : ''}</td>
-                    <td style="text-align:right;font-family:var(--font-mono)">
-                        ${_num(r.stock) <= 0
-                            ? '<span class="tll-badge anulada">0</span>'
-                            : _fmtCant(r.stock)}</td>
-                    <td style="text-align:right;font-family:var(--font-mono)">${fmtCLP(r.precio_venta)}</td>
-                    <td style="text-align:right">
-                        <button class="tll-btn tll-btn--ghost ven-add" data-codigo="${esc(r.codigo)}"
-                                ${_num(r.stock) <= 0 ? 'disabled' : ''}>Agregar</button></td>
-                </tr>`).join('')}
-            </tbody>
-        </table>`;
+        <div class="tll-cards">
+            ${lista.map(r => {
+                const stock = _num(r.stock);
+                const sin   = stock <= 0;
+                const lleva = _carro.find(i => i.tipo === 'repuesto' && i.codigo === r.codigo)?.cantidad || 0;
+                return `
+                <button type="button" class="tll-card${sin ? ' tll-card--sin' : ''}"
+                        data-codigo="${esc(r.codigo)}" ${sin ? 'disabled' : ''}
+                        title="${esc(r.codigo)}${r.marca ? ' · ' + esc(r.marca) : ''}">
+                    <span class="tll-card-img">
+                        ${r.imagen_url
+                            ? `<img src="${esc(urlImagenRepuesto(r.imagen_url))}" alt="" loading="lazy" decoding="async">`
+                            : '<span class="tll-card-sinfoto">🔩</span>'}
+                        ${lleva ? `<span class="tll-card-lleva">${lleva}</span>` : ''}
+                    </span>
+                    <span class="tll-card-precio">${fmtCLP(r.precio_venta)}</span>
+                    <span class="tll-card-nombre">${esc(r.nombre)}</span>
+                    <span class="tll-card-stock ${sin ? 'sin' : stock <= 2 ? 'poco' : 'ok'}">
+                        ${sin ? '0 disponibles' : `${_fmtCant(stock)} disponible${stock === 1 ? '' : 's'}`}</span>
+                </button>`;
+            }).join('')}
+        </div>
+        ${filtrados.length > lista.length ? `
+        <div style="text-align:center;margin-top:0.9rem">
+            <button class="tll-btn tll-btn--ghost" id="ven-mas">
+                Mostrar más (${lista.length} de ${filtrados.length})</button>
+        </div>` : ''}`;
 
-        cont.querySelectorAll('.ven-add').forEach(b =>
+        cont.querySelectorAll('.tll-card').forEach(b =>
             b.addEventListener('click', () => _agregarRepuesto(b.dataset.codigo)));
+        // Foto que no carga (borrada, sin red): vuelve al ícono
+        cont.querySelectorAll('.tll-card-img img').forEach(img =>
+            img.addEventListener('error', () => {
+                img.outerHTML = '<span class="tll-card-sinfoto">🔩</span>';
+            }));
+        document.getElementById('ven-mas')?.addEventListener('click', () => {
+            _verTope += POR_PAGINA;
+            _renderCatalogo();
+        });
     }
 
     // ── Carro ─────────────────────────────────────────────────────
@@ -289,9 +309,28 @@ const ModuloVentas = (() => {
         });
     }
 
+    /** Pone/quita el globito con la cantidad en carro sobre cada tarjeta,
+        sin volver a dibujar el catálogo (no parpadean las fotos). */
+    function _marcarCarroEnTarjetas() {
+        document.querySelectorAll('#ven-resultados .tll-card').forEach(card => {
+            const lleva = _carro.find(i => i.tipo === 'repuesto' && i.codigo === card.dataset.codigo)?.cantidad || 0;
+            const img   = card.querySelector('.tll-card-img');
+            let tag     = img?.querySelector('.tll-card-lleva');
+            if (!img) return;
+            if (!lleva) { tag?.remove(); return; }
+            if (!tag) {
+                tag = document.createElement('span');
+                tag.className = 'tll-card-lleva';
+                img.appendChild(tag);
+            }
+            tag.textContent = lleva;
+        });
+    }
+
     function _renderCarro() {
         const cont = document.getElementById('ven-carro');
         if (!cont) return;
+        _marcarCarroEnTarjetas();
 
         if (_carro.length === 0) {
             cont.innerHTML = `<div class="placeholder-text" style="padding:1.6rem 1rem">

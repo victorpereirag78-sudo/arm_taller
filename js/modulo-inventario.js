@@ -15,6 +15,8 @@ const ModuloInventario = (() => {
     let _repuestos = [];
     let _editando  = null;
     let _filtro    = 'activos';
+    let _imgNueva  = null;    // Blob ya achicado, pendiente de subir al guardar
+    let _imgQuitar = false;   // true = el usuario pidió quitar la foto actual
 
     // ── Init ──────────────────────────────────────────────────────
     async function init() {
@@ -124,7 +126,7 @@ const ModuloInventario = (() => {
         cont.innerHTML = `
         <table class="tll-tabla">
             <thead><tr>
-                <th>Código</th><th>Repuesto</th><th>Ubicación</th>
+                <th style="width:56px"></th><th>Código</th><th>Repuesto</th><th>Ubicación</th>
                 <th style="text-align:right">Stock</th>
                 <th style="text-align:right">Costo</th>
                 <th style="text-align:right">Venta</th>
@@ -134,6 +136,7 @@ const ModuloInventario = (() => {
             <tbody>
             ${filtrados.map(r => `
                 <tr${r.activo ? '' : ' style="opacity:0.5"'}>
+                    <td style="padding-right:0">${_miniatura(r)}</td>
                     <td style="font-family:var(--font-mono)"><strong>${esc(r.codigo)}</strong>
                         ${r.codigo_oem ? `<div style="font-size:0.7rem;color:var(--text-muted)">OEM ${esc(r.codigo_oem)}</div>` : ''}</td>
                     <td>${esc(r.nombre)}
@@ -161,11 +164,22 @@ const ModuloInventario = (() => {
         cont.querySelectorAll('.inv-entrada').forEach(b => b.addEventListener('click', () => _abrirEntrada(porId(b))));
         cont.querySelectorAll('.inv-ajuste') .forEach(b => b.addEventListener('click', () => _abrirAjuste(porId(b))));
         cont.querySelectorAll('.inv-kardex') .forEach(b => b.addEventListener('click', () => _abrirKardex(porId(b))));
+        // Foto que no carga (borrada, sin red): vuelve al ícono
+        cont.querySelectorAll('.tll-mini-img img').forEach(img =>
+            img.addEventListener('error', () => { img.parentElement.textContent = '🔩'; }));
+    }
+
+    function _miniatura(r) {
+        return `<div class="tll-mini-img">${r.imagen_url
+            ? `<img src="${esc(urlImagenRepuesto(r.imagen_url))}" alt="" loading="lazy" decoding="async">`
+            : '🔩'}</div>`;
     }
 
     // ── Formulario de repuesto ────────────────────────────────────
     function _abrirForm(rep) {
-        _editando = rep;
+        _editando  = rep;
+        _imgNueva  = null;
+        _imgQuitar = false;
 
         abrirModal(`
         <div class="tll-modal-header">
@@ -173,6 +187,20 @@ const ModuloInventario = (() => {
             <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
         </div>
         <div class="tll-form-grid">
+            <div class="tll-field tll-field--full">
+                <label>Foto del repuesto</label>
+                <div class="tll-foto-campo">
+                    <div class="tll-foto-prev" id="inv-f-foto-prev"></div>
+                    <div class="tll-foto-acciones">
+                        <label class="tll-btn tll-btn--ghost" style="cursor:pointer">
+                            📷 <span id="inv-f-foto-txt">Subir foto</span>
+                            <input type="file" id="inv-f-foto" accept="image/*" hidden>
+                        </label>
+                        <button type="button" class="tll-btn tll-btn--ghost" id="inv-f-foto-quitar">Quitar</button>
+                        <span class="tll-field-msg" id="inv-f-foto-info">Se achica sola a ${REPUESTO_IMG_PX}×${REPUESTO_IMG_PX} px para que cargue rápido y se vea nítida.</span>
+                    </div>
+                </div>
+            </div>
             <div class="tll-field">
                 <label>Código interno *</label>
                 <input class="tll-input" id="inv-f-codigo" style="font-family:var(--font-mono)"
@@ -268,7 +296,51 @@ const ModuloInventario = (() => {
         document.getElementById('inv-f-venta').addEventListener('input', refrescarMargen);
         refrescarMargen();
 
+        _montarFoto(rep);
         document.getElementById('inv-guardar').addEventListener('click', _guardar);
+    }
+
+    /** Vista previa de la foto y sus dos botones (subir / quitar). */
+    function _montarFoto(rep) {
+        const prev   = document.getElementById('inv-f-foto-prev');
+        const txt    = document.getElementById('inv-f-foto-txt');
+        const info   = document.getElementById('inv-f-foto-info');
+        const quitar = document.getElementById('inv-f-foto-quitar');
+        let urlLocal = null;
+
+        const pintar = () => {
+            if (urlLocal) { URL.revokeObjectURL(urlLocal); urlLocal = null; }
+            let src = '';
+            if (_imgNueva) { urlLocal = URL.createObjectURL(_imgNueva); src = urlLocal; }
+            else if (rep?.imagen_url && !_imgQuitar) src = urlImagenRepuesto(rep.imagen_url);
+
+            prev.innerHTML = src ? `<img src="${esc(src)}" alt="">` : '🔩';
+            txt.textContent = src ? 'Cambiar foto' : 'Subir foto';
+            quitar.style.display = src ? '' : 'none';
+        };
+
+        document.getElementById('inv-f-foto').addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            if (!file) return;
+            try {
+                _imgNueva  = await achicarImagenRepuesto(file);
+                _imgQuitar = false;
+                info.textContent = `Lista: ${Math.round(_imgNueva.size / 1024)} KB. Se sube al guardar.`;
+                pintar();
+            } catch (err) {
+                console.warn('[Inventario] foto:', err);
+                avisar('No se pudo leer esa imagen. Prueba con un JPG, PNG o WebP.', 'error');
+            }
+        });
+
+        quitar.addEventListener('click', () => {
+            _imgNueva  = null;
+            _imgQuitar = !!rep?.imagen_url;
+            pintar();
+        });
+
+        pintar();
     }
 
     async function _guardar() {
@@ -303,7 +375,19 @@ const ModuloInventario = (() => {
         const btn = document.getElementById('inv-guardar');
         btn.disabled = true;
 
+        // La foto se sube primero (si falla, no se guarda nada a medias) y
+        // la anterior se borra solo cuando el repuesto ya quedó guardado.
+        const rutaAnterior = _editando?.imagen_url || null;
+        let rutaNueva = null;
+
         try {
+            if (_imgNueva) {
+                rutaNueva = await subirImagenRepuesto(fila.empresa_id, codigo, _imgNueva);
+                fila.imagen_url = rutaNueva;
+            } else if (_imgQuitar) {
+                fila.imagen_url = null;
+            }
+
             if (_editando) {
                 fila.activo = document.getElementById('inv-f-activo').value === 'true';
                 // Ojo: 'stock' no va aquí a propósito — solo lo mueven las RPC.
@@ -333,11 +417,13 @@ const ModuloInventario = (() => {
                 }
                 avisar('Repuesto creado');
             }
+            if (rutaNueva || _imgQuitar) borrarImagenRepuesto(rutaAnterior);
             cerrarModal();
             await recargar();
         } catch (err) {
             console.error('[Inventario] guardar:', err);
             btn.disabled = false;
+            if (rutaNueva) borrarImagenRepuesto(rutaNueva);
             avisar(err.code === '23505'
                 ? `Ya existe un repuesto con el código ${codigo}`
                 : 'Error al guardar. Revisa la consola.', 'error');

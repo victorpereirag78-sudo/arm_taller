@@ -190,3 +190,73 @@ function htmlAlertaRobo(r) {
         </div>
     </div>`;
 }
+
+// ── Foto del repuesto (sql/48) ───────────────────────────────────
+// La imagen vive en Supabase Storage (bucket "repuestos"); en la base
+// solo queda la ruta. Se achica ANTES de subir: la tarjeta de Ventas
+// muestra ~170 px, así que 480 px cubre pantallas retina sin pasarse.
+const REPUESTO_IMG_PX = 480;
+const REPUESTO_IMG_BUCKET = 'repuestos';
+
+/** Ruta guardada en la base → URL pública. No hace llamadas de red. */
+function urlImagenRepuesto(ruta) {
+    if (!ruta) return '';
+    if (/^https?:\/\//i.test(ruta)) return ruta;
+    return db.storage.from(REPUESTO_IMG_BUCKET).getPublicUrl(ruta).data.publicUrl;
+}
+
+/** Foto cualquiera (cámara del celular, PNG, JPG…) → Blob WebP cuadrado
+    de hasta REPUESTO_IMG_PX, con el repuesto entero sobre fondo blanco
+    (sin recortar). Una imagen más chica que el límite no se agranda.
+    Si el navegador no sabe WebP, cae a JPG. Pesa ~15-40 KB. */
+function achicarImagenRepuesto(file) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const lado = Math.max(1, Math.min(REPUESTO_IMG_PX, Math.max(img.naturalWidth, img.naturalHeight)));
+            const k = Math.min(lado / img.naturalWidth, lado / img.naturalHeight);
+            const w = Math.max(1, Math.round(img.naturalWidth * k));
+            const h = Math.max(1, Math.round(img.naturalHeight * k));
+
+            const c = document.createElement('canvas');
+            c.width = c.height = lado;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, lado, lado);
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, Math.round((lado - w) / 2), Math.round((lado - h) / 2), w, h);
+
+            const salir = (tipo, calidad) => new Promise(r => c.toBlob(r, tipo, calidad));
+            (async () => {
+                let blob = await salir('image/webp', 0.82);
+                if (!blob || blob.type !== 'image/webp') blob = await salir('image/jpeg', 0.85);
+                if (blob && blob.size > 250000) blob = await salir(blob.type, 0.6);
+                blob ? resolve(blob) : reject(new Error('no se pudo convertir'));
+            })();
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('no es una imagen')); };
+        img.src = url;
+    });
+}
+
+/** Sube el Blob a <empresa>/<codigo>-<azar>.<ext> y devuelve la ruta.
+    El nombre cambia en cada subida: así el navegador nunca muestra la
+    foto vieja desde su caché al reemplazarla. */
+async function subirImagenRepuesto(empresaId, codigo, blob) {
+    const ext  = blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+    const slug = String(codigo).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'repuesto';
+    const ruta = `${empresaId}/${slug}-${Date.now().toString(36)}.${ext}`;
+    const { error } = await db.storage.from(REPUESTO_IMG_BUCKET)
+        .upload(ruta, blob, { contentType: blob.type, cacheControl: '31536000' });
+    if (error) throw error;
+    return ruta;
+}
+
+/** Borra una foto del bucket. Silencioso: un huérfano no debe trabar nada. */
+async function borrarImagenRepuesto(ruta) {
+    if (!ruta || /^https?:\/\//i.test(ruta)) return;
+    try { await db.storage.from(REPUESTO_IMG_BUCKET).remove([ruta]); }
+    catch (e) { console.warn('[Imagen] no se pudo borrar', ruta, e); }
+}
