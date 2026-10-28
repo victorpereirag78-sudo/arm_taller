@@ -504,11 +504,14 @@ const ModuloPresupuestos = (() => {
             <div style="font-size:0.85rem">${esc(p.motivo) || '—'}</div>
         </div>
 
-        ${p.estado === 'aprobado' ? `
+        ${p.estado === 'aprobado' || (p.estado === 'convertido' && p._firma) ? `
         <div class="tll-recep-found" style="margin-bottom:0.8rem">
             Aprobado por <strong>${esc(p.aprobado_por) || 'el cliente'}</strong>
             ${p.aprobado_via ? `(${esc(VIAS_ETIQ[p.aprobado_via] || p.aprobado_via)})` : ''}
             el ${fmtFechaHora(p.aprobado_at)}.
+            ${p._firma ? `<div style="margin-top:0.5rem"><span style="font-size:0.72rem;opacity:0.8">Firma del cliente</span><br>
+                <img src="${p._firma}" alt="Firma del cliente"
+                     style="max-height:70px;max-width:100%;background:#fff;border-radius:6px;padding:4px"></div>` : ''}
         </div>` : ''}
         ${p.estado === 'rechazado' && p.motivo_rechazo ? `
         <div class="tll-recep-notfound" style="margin-bottom:0.8rem">
@@ -574,25 +577,15 @@ const ModuloPresupuestos = (() => {
         <div class="tll-ot-totales" id="prs-totales" style="flex-direction:column;align-items:stretch"></div>
 
         <div class="tll-modal-footer prs-pie">
-            <div class="prs-pie-g">
-                <button class="tll-btn tll-btn--ghost" id="prs-ver">👁 Ver documento</button>
-                <button class="tll-btn tll-btn--ghost" id="prs-imprimir">🖨 Imprimir / PDF</button>
-                ${p.estado === 'enviado' ? `
-                <button class="tll-btn tll-btn--ghost" id="prs-copiar">🔗 Copiar enlace</button>
-                <button class="tll-btn tll-btn--ghost" id="prs-wa">💬 WhatsApp</button>` : ''}
-                ${!['convertido', 'reemplazado'].includes(p.estado)
-                    ? `<button class="tll-btn tll-btn--ghost" id="prs-version">Nueva versión</button>` : ''}
-            </div>
-            <div class="prs-pie-g">
-                ${p.estado === 'borrador' ? `<button class="tll-btn tll-btn--primary" id="prs-enviar">📤 Enviar al cliente</button>` : ''}
-                ${p.estado === 'enviado' ? `<button class="tll-btn tll-btn--ghost" id="prs-enviar">📤 Reenviar</button>` : ''}
-                ${['borrador', 'enviado'].includes(p.estado) && !p.vencido
-                    ? `<button class="tll-btn tll-btn--primary" id="prs-aprobar">✓ Cliente aprobó</button>
-                       <button class="tll-btn tll-btn--danger" id="prs-rechazar">Rechazó</button>` : ''}
-                ${p.estado === 'aprobado'
-                    ? `<button class="tll-btn tll-btn--primary" id="prs-convertir">🛠 Convertir en OT</button>` : ''}
-                <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cerrar</button>
-            </div>
+            <button class="tll-btn tll-btn--ghost" id="prs-ver">${_btn('👁', 'Documento')}</button>
+            ${['borrador', 'enviado'].includes(p.estado)
+                ? `<button class="tll-btn tll-btn--primary" id="prs-enviar">${_btn('💬', 'Enviar')}</button>` : ''}
+            <button class="tll-btn tll-btn--ghost" id="prs-mas">${_btn('⋯', 'Más')}</button>
+            ${['borrador', 'enviado'].includes(p.estado) && !p.vencido
+                ? `<button class="tll-btn tll-btn--ghost prs-b-ok" id="prs-aprobar">${_btn('✓', 'Aprobó')}</button>
+                   <button class="tll-btn tll-btn--danger" id="prs-rechazar">${_btn('✕', 'Rechazó')}</button>` : ''}
+            ${p.estado === 'aprobado'
+                ? `<button class="tll-btn tll-btn--primary" id="prs-convertir">${_btn('🛠', 'Convertir a OT')}</button>` : ''}
         </div>`, '980px');
 
         await _cargarItems();
@@ -612,14 +605,42 @@ const ModuloPresupuestos = (() => {
         }
 
         document.getElementById('prs-enviar')?.addEventListener('click', _abrirEnvio);
-        document.getElementById('prs-copiar')?.addEventListener('click', _copiarEnlace);
-        document.getElementById('prs-wa')?.addEventListener('click', _abrirWhatsApp);
+        document.getElementById('prs-mas').addEventListener('click', _abrirMas);
         document.getElementById('prs-ver').addEventListener('click', _verDocumento);
-        document.getElementById('prs-imprimir').addEventListener('click', _imprimir);
         document.getElementById('prs-aprobar')?.addEventListener('click', _abrirAprobacion);
         document.getElementById('prs-rechazar')?.addEventListener('click', _abrirRechazo);
         document.getElementById('prs-convertir')?.addEventListener('click', _convertir);
-        document.getElementById('prs-version')?.addEventListener('click', _nuevaVersion);
+    }
+
+    /** Botón del pie: icono arriba y texto abajo en el móvil, en línea en el notebook. */
+    function _btn(icono, texto) {
+        return `<span class="prs-b-i">${icono}</span><span class="prs-b-t">${texto}</span>`;
+    }
+
+    /** Acciones menos usadas, para que el pie no pase de 5 botones. */
+    function _abrirMas() {
+        const p = _abierto;
+        const conEnlace = p._ext?.token_publico && p.estado !== 'borrador';
+        abrirModal(`
+        <div class="tll-modal-header">
+            <h3>Presupuesto N° ${esc(p.numero)} · más opciones</h3>
+            <button class="tll-modal-cerrar" onclick="cerrarModal()">✕</button>
+        </div>
+        <div class="prs-mas">
+            <button class="tll-btn tll-btn--ghost" id="prs-m-imprimir">🖨 Imprimir / guardar PDF</button>
+            ${conEnlace ? `<button class="tll-btn tll-btn--ghost" id="prs-m-copiar">🔗 Copiar enlace del cliente</button>` : ''}
+            ${!['convertido', 'reemplazado'].includes(p.estado)
+                ? `<button class="tll-btn tll-btn--ghost" id="prs-m-version">📝 Nueva versión</button>` : ''}
+        </div>
+        <div class="tll-modal-footer">
+            <button class="tll-btn tll-btn--ghost" id="prs-m-volver">‹ Volver</button>
+        </div>`, '420px');
+
+        // La impresión se abre en el mismo toque (si no, el celular bloquea la ventana)
+        document.getElementById('prs-m-imprimir').addEventListener('click', () => { _imprimir(); abrirDetalle(p); });
+        document.getElementById('prs-m-copiar')?.addEventListener('click', async () => { await _copiarEnlace(); abrirDetalle(p); });
+        document.getElementById('prs-m-version')?.addEventListener('click', _nuevaVersion);
+        document.getElementById('prs-m-volver').addEventListener('click', () => abrirDetalle(p));
     }
 
     async function _cargarItems() {
@@ -650,27 +671,31 @@ const ModuloPresupuestos = (() => {
                         <th>Detalle</th><th style="text-align:right">Cant.</th>
                         <th style="text-align:right">P. unit</th>
                         <th style="text-align:right">Subtotal</th>
-                        <th style="text-align:right">Margen</th>${editable ? '<th></th>' : ''}
+                        <th style="text-align:right">Margen</th>${editable ? '<th class="prs-i-acc"></th>' : ''}
                     </tr></thead>
                     <tbody>
                     ${items.map(i => {
                         const venta = _num(i.subtotal);
                         const costo = Math.round(_num(i.cantidad) * _num(i.costo_unitario));
                         const pct = venta > 0 ? (venta - costo) / venta * 100 : 0;
+                        // Mismos botones en dos sitios: en el notebook van en su columna;
+                        // en el móvil esa columna se oculta y van bajo el detalle.
+                        const acciones = editable ? `
+                                <button class="tll-btn tll-btn--ghost prs-i-opt" data-id="${i.id}"
+                                        data-opcional="${i.opcional}">${i.opcional ? 'Incluir' : 'Opcional'}</button>
+                                <button class="tll-btn tll-btn--danger prs-i-quitar" data-id="${i.id}">✕</button>` : '';
                         return `
                         <tr${i.opcional ? ' style="opacity:0.65"' : ''}>
                             <td>${i.tipo === 'repuesto' ? '🔩' : '🔧'} ${esc(i.descripcion)}
                                 ${i.opcional ? '<span class="tll-badge presupuesto">opcional</span>' : ''}
-                                ${i.articulo_codigo ? `<div style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono)">${esc(i.articulo_codigo)}</div>` : ''}</td>
+                                ${i.articulo_codigo ? `<div style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono)">${esc(i.articulo_codigo)}</div>` : ''}
+                                ${editable ? `<div class="prs-i-accm">${acciones}</div>` : ''}</td>
                             <td style="text-align:right;font-family:var(--font-mono)">${_fmtCant(i.cantidad)}</td>
                             <td style="text-align:right;font-family:var(--font-mono)">${fmtCLP(i.precio_unitario)}</td>
                             <td style="text-align:right;font-family:var(--font-mono)">${fmtCLP(i.subtotal)}</td>
                             <td style="text-align:right;font-family:var(--font-mono);color:${_colorMargen(pct)}">
                                 ${costo > 0 ? pct.toFixed(0) + '%' : '—'}</td>
-                            ${editable ? `<td style="text-align:right;white-space:nowrap">
-                                <button class="tll-btn tll-btn--ghost prs-i-opt" data-id="${i.id}"
-                                        data-opcional="${i.opcional}">${i.opcional ? 'Incluir' : 'Opcional'}</button>
-                                <button class="tll-btn tll-btn--danger prs-i-quitar" data-id="${i.id}">✕</button></td>` : ''}
+                            ${editable ? `<td class="prs-i-acc" style="text-align:right;white-space:nowrap">${acciones}</td>` : ''}
                         </tr>`;
                     }).join('')}
                     </tbody>
@@ -967,13 +992,19 @@ const ModuloPresupuestos = (() => {
     // ── Ficha, documento y envío ──────────────────────────────────
     /** Cliente, vehículo y datos de envío del presupuesto (la vista no los trae). */
     async function _cargarFicha(p) {
-        const [cli, veh, ext, vin] = await Promise.all([
+        const [cli, veh, ext, vin, fir] = await Promise.all([
             p.cliente_id  ? db.from('taller_clientes').select('*').eq('id', p.cliente_id).maybeSingle() : null,
             p.vehiculo_id ? db.from('taller_vehiculos').select('*').eq('id', p.vehiculo_id).maybeSingle() : null,
             db.from('taller_presupuestos').select('token_publico, url_publica, canal_aviso').eq('id', p.id).maybeSingle(),
             p.vehiculo_id ? db.from('v_taller_vinculos').select('estado')
-                .eq('taller_vehiculo_id', p.vehiculo_id).eq('estado', 'activo').limit(1) : null
+                .eq('taller_vehiculo_id', p.vehiculo_id).eq('estado', 'activo').limit(1) : null,
+            // Aparte: si falta sql/49 esta consulta falla sola y no arrastra al resto
+            ['aprobado', 'convertido'].includes(p.estado)
+                ? db.from('taller_presupuestos').select('firma_imagen, firma_at').eq('id', p.id).maybeSingle() : null
         ]);
+        const firma = fir?.data?.firma_imagen;
+        p._firma     = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(firma || '') ? firma : null;
+        p._firma_at  = fir?.data?.firma_at || null;
         p._cli   = cli?.data || null;
         p._veh   = veh?.data || null;
         p._ext   = ext?.data || {};
@@ -995,6 +1026,7 @@ const ModuloPresupuestos = (() => {
             diagnostico: p.diagnostico, condiciones: p.condiciones || cfg.condiciones_presupuesto || null,
             neto: p.neto, iva: p.iva, total: p.total,
             aprobado_por: p.aprobado_por, aprobado_at: p.aprobado_at,
+            firma: p._firma, firma_at: p._firma_at,
             taller: {
                 nombre: emp.nombre, logo_url: emp.logo_url, rut: cfg.rut, giro: cfg.giro,
                 direccion: cfg.direccion, comuna: cfg.comuna, ciudad: cfg.ciudad,
@@ -1060,16 +1092,63 @@ const ModuloPresupuestos = (() => {
         let tel = String(p.cliente_telefono || '').replace(/\D/g, '');
         if (tel.length === 9 && tel.startsWith('9')) tel = '56' + tel;
         else if (tel.length === 8) tel = '569' + tel;
-        if (tel.length < 11) { avisar('El cliente no tiene un teléfono válido', 'error'); return; }
+        if (tel.length < 11) { avisar('El cliente no tiene un teléfono válido', 'error'); return false; }
 
         const token = p._ext?.token_publico;
-        if (!token) { avisar('Este presupuesto aún no tiene enlace. Falta ejecutar sql/44.', 'error'); return; }
+        if (!token) { avisar('Este presupuesto aún no tiene enlace. Falta ejecutar sql/44.', 'error'); return false; }
         const url = p._ext.url_publica || _urlPublica(token);
         const taller = window.appData.empresa?.nombre || 'el taller';
 
         const texto = `Hola ${p.cliente_nombre || ''}, te envío el presupuesto N° ${p.numero} de ${taller} ` +
-            `por ${fmtCLP(p.total)}. Míralo completo y apruébalo aquí: ${url}`;
-        window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+            `por ${fmtCLP(p.total)}. Míralo completo, apruébalo y fírmalo aquí: ${url}`;
+        const wa = `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
+
+        // Sin 'noopener' en el feature: con él window.open devuelve siempre null y no se
+        // distingue un bloqueo. Si el celular bloquea la pestaña nueva, se navega en esta.
+        const w = window.open(wa, '_blank');
+        if (w) { try { w.opener = null; } catch { /* ya aislada */ } }
+        else location.href = wa;
+        return true;
+    }
+
+    /** Envía por WhatsApp y, si era borrador, lo deja marcado como enviado. */
+    async function _enviarPorWhatsApp() {
+        const p = _abierto;
+        if (!(Number(p.total) > 0)) { avisar('Agrega al menos un ítem con precio antes de enviarlo', 'error'); return; }
+        if (!p.cliente_telefono) { avisar('El cliente no tiene teléfono: cópiale el enlace', 'error'); return; }
+
+        const btn = document.getElementById('prs-e-wa');
+        btn.disabled = true;
+
+        // Primero se marca (el celular pausa la página al abrir WhatsApp), pero el
+        // WhatsApp se abre pase lo que pase con el registro.
+        let marcado = p.estado !== 'borrador';
+        if (!marcado) {
+            try {
+                const token = p._ext?.token_publico;
+                if (token) {
+                    const canal = p._appOk ? 'mi_vehiculo' : 'ninguno';   // WhatsApp ya lo manda el taller a mano
+                    const { error: eUp } = await db.from('taller_presupuestos')
+                        .update({ canal_aviso: canal, url_publica: _urlPublica(token) }).eq('id', p.id);
+                    if (eUp) throw eUp;
+                    const { data, error } = await db.rpc('fn_responder_presupuesto', {
+                        p_empresa_id: window.appData.usuario.empresa_id,
+                        p_presupuesto_id: p.id, p_respuesta: 'enviado' });
+                    if (error) throw error;
+                    marcado = !!data?.ok;
+                }
+            } catch (err) {
+                console.error('[Presupuestos] marcar enviado:', err);
+            }
+        }
+
+        if (!_abrirWhatsApp()) { btn.disabled = false; return; }
+
+        if (!marcado) avisar('Se abrió WhatsApp, pero no se pudo marcar como enviado. Revisa y reintenta.', 'error');
+        cerrarModal();
+        await recargar();
+        const nuevo = _lista.find(x => x.id === p.id);
+        if (nuevo) abrirDetalle(nuevo);
     }
 
     /** Pregunta cómo informar y manda el presupuesto (o lo reenvía). */
@@ -1092,9 +1171,17 @@ const ModuloPresupuestos = (() => {
             <strong>${esc(p.cliente_nombre) || 'Cliente'}</strong> · ${esc(p.patente) || ''} ·
             <strong>${fmtCLP(p.total)}</strong>
         </div>
+        <div class="prs-mas" style="margin-bottom:0.9rem">
+            <button class="tll-btn tll-btn--primary" id="prs-e-wa" ${tel ? '' : 'disabled'}>
+                💬 Enviar por WhatsApp</button>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin:-0.2rem 0 0.2rem">
+                ${tel ? `Se abre WhatsApp con el mensaje y el enlace listos para ${esc(tel)}. Solo toca enviar.`
+                      : 'El cliente no tiene teléfono. Cópiale el enlace.'}</div>
+            <button class="tll-btn tll-btn--ghost" id="prs-e-copiar">🔗 Copiar enlace</button>
+        </div>
         <div class="tll-form-grid">
             <div class="tll-field tll-field--full">
-                <label>Cómo informar al cliente</label>
+                <label>Aviso automático (App / WhatsApp del sistema)</label>
                 <select class="tll-select" id="prs-e-canal">
                     ${CANAL_AVISO.map(([v, t]) =>
                         `<option value="${v}" ${v === inicial ? 'selected' : ''}>${t}</option>`).join('')}
@@ -1111,9 +1198,11 @@ const ModuloPresupuestos = (() => {
         </div>
         <div class="tll-modal-footer">
             <button class="tll-btn tll-btn--ghost" onclick="cerrarModal()">Cancelar</button>
-            <button class="tll-btn tll-btn--primary" id="prs-e-ok">${reenvio ? 'Reenviar' : 'Enviar al cliente'}</button>
+            <button class="tll-btn tll-btn--ghost" id="prs-e-ok">${reenvio ? 'Reenviar aviso' : 'Enviar aviso automático'}</button>
         </div>`, '600px');
 
+        document.getElementById('prs-e-wa').addEventListener('click', _enviarPorWhatsApp);
+        document.getElementById('prs-e-copiar').addEventListener('click', _copiarEnlace);
         document.getElementById('prs-e-ok').addEventListener('click', () =>
             _enviar(document.getElementById('prs-e-canal').value, reenvio));
     }

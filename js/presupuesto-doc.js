@@ -44,6 +44,24 @@ const PresupuestoDoc = (() => {
         return /^https?:\/\//i.test(u) || /^data:image\/(png|jpeg|webp);base64,/i.test(u) ? u : '';
     }
 
+    /** La firma es un PNG en base64 (la dibuja el cliente): solo se acepta ese formato. */
+    function _firmaSegura(f) {
+        const s = String(f || '');
+        return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(s) ? s : '';
+    }
+
+    function _bloqueFirma(d) {
+        const firma = _firmaSegura(d.firma);
+        if (!firma) return '';
+        const cuando = d.firma_at || d.aprobado_at;
+        return `
+            <div class="pdoc-firma">
+                <img src="${firma}" alt="Firma del cliente">
+                <div class="pdoc-firma-pie"><b>${_esc(d.aprobado_por || d.cliente?.nombre || 'Cliente')}</b><br>
+                    Firma de aprobación${cuando ? ' · ' + _fecha(cuando) : ''}</div>
+            </div>`;
+    }
+
     function _filaId(k, v) {
         const t = String(v ?? '').trim();
         return t ? `<tr><th>${k}</th><td>${_esc(t)}</td></tr>` : '';
@@ -76,6 +94,10 @@ const PresupuestoDoc = (() => {
     .pdoc-totales .tot { font-size:17px; font-weight:800; border-top:1px solid #111; margin-top:4px; padding-top:6px; }
     .pdoc-opc { margin-top:14px; font-size:12px; color:#333; }
     .pdoc-opc b { text-transform:uppercase; }
+    .pdoc-firma { margin:22px 0 0 auto; width:300px; text-align:center; break-inside:avoid; }
+    .pdoc-firma img { display:block; width:100%; max-height:130px; object-fit:contain;
+                      border-bottom:1.5px solid #111; padding-bottom:4px; }
+    .pdoc-firma-pie { font-size:12px; color:#333; margin-top:4px; line-height:1.4; }
     .pdoc-nota { margin-top:22px; padding-top:10px; border-top:1px solid #bbb; font-size:11px; color:#555; line-height:1.6; }
     .pdoc-estado { margin:0 0 14px; padding:8px 12px; border-radius:6px; font-weight:700; font-size:13px; text-align:center; }
     .pdoc-estado.ok   { background:#e7f7ee; color:#146c3a; }
@@ -86,7 +108,7 @@ const PresupuestoDoc = (() => {
         .pdoc-cab { flex-direction:column; align-items:stretch; }
         .pdoc-logo { flex:none; }
         .pdoc-taller { border-left:0; padding-left:0; border-top:2px solid #111; padding-top:10px; }
-        .pdoc-totales { width:100%; }
+        .pdoc-totales, .pdoc-firma { width:100%; }
     }
     @media print { .pdoc { padding:0; max-width:none; } }`;
 
@@ -199,6 +221,8 @@ const PresupuestoDoc = (() => {
                     ${opc.map(i => filaValor(_esc(i.descripcion) + (Number(i.cantidad) !== 1 ? ` (x${_cant(i.cantidad)})` : ''), i.subtotal)).join('')}
                 </table>
             </div>` : ''}
+
+            ${_bloqueFirma(d)}
 
             <div class="pdoc-nota">
                 ${condiciones}

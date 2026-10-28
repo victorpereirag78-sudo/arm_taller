@@ -1450,31 +1450,46 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
     .prs-span2,
     .prs-agregar { grid-column: 1 / -1; }
     #prs-items { overflow-x: auto; }
-    #prs-items .tll-tabla th, #prs-items .tll-tabla td { padding: 0.5rem 0.4rem; font-size: 0.76rem; }
-    #prs-items .tll-tabla th:nth-child(5), #prs-items .tll-tabla td:nth-child(5) { display: none; } /* margen */
-    #prs-items .tll-btn { padding: 0.3rem 0.5rem; font-size: 0.72rem; }
+    /* Mismas columnas que en el notebook (incluido el margen); los botones de
+       cada ítem pasan de su columna a una línea bajo el detalle. */
+    #prs-items .tll-tabla th, #prs-items .tll-tabla td { padding: 0.45rem 0.22rem; font-size: 0.68rem; }
+    #prs-items .tll-tabla th { letter-spacing: 0; }
+    #prs-items .tll-tabla td:first-child { word-break: break-word; }
+    #prs-items .tll-tabla td:not(:first-child) { white-space: nowrap; }
+    #prs-items .prs-i-acc { display: none; }
+    #prs-items .prs-i-accm { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+    #prs-items .tll-btn { padding: 0.25rem 0.5rem; font-size: 0.7rem; white-space: nowrap; }
     .tll-ot-totales { gap: 0.6rem; }
 }
 
 /* ── Presupuesto: pie del detalle ───────────────────────────────────
-   Dos filas ordenadas en casilleros iguales (5 por fila): arriba las
-   herramientas, abajo las acciones, alineadas a la derecha. */
-.prs-pie { flex-direction: column; align-items: stretch; gap: 0.5rem; }
-.prs-pie-g { display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%; }
-.prs-pie-g:last-child { justify-content: flex-end; }
-.prs-pie .prs-pie-g .tll-btn {
+   Una sola fila de hasta 5 botones, igual en notebook y en móvil: en el
+   notebook icono + texto en línea, en el móvil icono arriba y texto debajo. */
+.prs-i-accm { display: none; }
+.prs-pie { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 0.5rem; }
+.prs-pie .tll-btn {
     flex: 0 0 calc((100% - 4 * 0.5rem) / 5);
     min-width: 0;
-    justify-content: center;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
     white-space: nowrap;
     padding-left: 0.4rem; padding-right: 0.4rem;
 }
+.prs-pie .prs-b-ok { border-color: rgba(52,211,153,0.5); color: #34d399; }
+.prs-mas { display: flex; flex-direction: column; gap: 0.6rem; }
+.prs-mas .tll-btn { width: 100%; justify-content: flex-start; padding: 0.8rem 0.9rem; }
+#prs-e-wa { justify-content: center; font-size: 1rem; }
 .prs-opcional label { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0;
     font-family: var(--font-body); font-size: 0.82rem; letter-spacing: 0; text-transform: none;
     color: var(--text-secondary); cursor: pointer; }
 @media (max-width: 640px) {
-    .prs-pie .prs-pie-g .tll-btn { flex: 0 0 calc((100% - 0.5rem) / 2); white-space: normal; }
-    .prs-pie-g:last-child { justify-content: stretch; }
+    .prs-pie { gap: 0.3rem; }
+    .prs-pie .tll-btn {
+        flex: 0 0 calc((100% - 4 * 0.3rem) / 5);
+        flex-direction: column; gap: 0.1rem;
+        padding: 0.45rem 0.1rem; line-height: 1.1;
+    }
+    .prs-b-i { font-size: 1.15rem; }
+    .prs-b-t { font-size: 0.6rem; white-space: normal; text-align: center; letter-spacing: 0; }
 }
 
 /* ── Catálogo en tarjetas (Ventas) y miniaturas (Inventario) ───────
