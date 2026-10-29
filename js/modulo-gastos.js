@@ -91,9 +91,9 @@ const ModuloGastos = (() => {
     }
 
     function _kpi(icono, valor, label) {
-        return `<div class="tll-kpi"><div class="tll-kpi-ico">${icono}</div>
-            <div><div class="tll-kpi-val">${esc(valor)}</div>
-            <div class="tll-kpi-lbl">${esc(label)}</div></div></div>`;
+        return `<div class="tll-kpi"><span class="tll-kpi-icono">${icono}</span>
+            <div class="tll-kpi-valor" style="font-size:1.5rem">${esc(valor)}</div>
+            <div class="tll-kpi-label">${esc(label)}</div></div>`;
     }
 
     function _renderLista() {
