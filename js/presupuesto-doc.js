@@ -85,8 +85,11 @@ const PresupuestoDoc = (() => {
     .pdoc-id th { font-weight:400; color:#444; padding-right:16px; }
     .pdoc-trabajo p { margin:0 0 6px; }
     .pdoc-grupo { margin:10px 0 2px; font-weight:800; text-transform:uppercase; font-size:12px; letter-spacing:.03em; }
-    .pdoc-lista { margin:0 0 6px; padding-left:34px; }
-    .pdoc-lista li { margin:1px 0; text-transform:uppercase; }
+    .pdoc-items { margin:0 0 6px; }
+    .pdoc-items td { padding:2px 0; vertical-align:top; text-transform:uppercase; }
+    .pdoc-items td.b { width:34px; padding-right:10px; text-align:right; }
+    .pdoc-items td.m { text-align:right; white-space:nowrap; padding-left:14px; text-transform:none;
+                       font-variant-numeric:tabular-nums; font-weight:700; }
     .pdoc-valores td { padding:3px 0; vertical-align:top; }
     .pdoc-valores td.m { text-align:right; white-space:nowrap; padding-left:14px; font-variant-numeric:tabular-nums; }
     .pdoc-totales { margin:14px 0 0 auto; width:300px; border-top:2px solid #111; padding-top:6px; }
@@ -109,6 +112,7 @@ const PresupuestoDoc = (() => {
         .pdoc-logo { flex:none; }
         .pdoc-taller { border-left:0; padding-left:0; border-top:2px solid #111; padding-top:10px; }
         .pdoc-totales, .pdoc-firma { width:100%; }
+        .pdoc-items td.b { width:20px; padding-right:6px; }
     }
     @media print { .pdoc { padding:0; max-width:none; } }`;
 
@@ -148,8 +152,11 @@ const PresupuestoDoc = (() => {
         const mo = porTipo('mano_obra');
         const rp = porTipo('repuesto');
 
-        const lista = (arr) => `<ul class="pdoc-lista">${arr.map(i =>
-            `<li>${_esc(i.descripcion)}${Number(i.cantidad) !== 1 ? ` (x${_cant(i.cantidad)})` : ''}</li>`).join('')}</ul>`;
+        // Cada servicio o repuesto con su valor al lado (IVA incluido, igual que los totales)
+        const lista = (arr) => `<table class="pdoc-items">${arr.map(i =>
+            `<tr><td class="b">•</td>
+                 <td>${_esc(i.descripcion)}${Number(i.cantidad) !== 1 ? ` (x${_cant(i.cantidad)})` : ''}</td>
+                 <td class="m">${_clp(i.subtotal)}</td></tr>`).join('')}</table>`;
 
         const trabajo = `
             ${d.motivo ? `<p><b>Solicitud del cliente:</b> ${_esc(d.motivo)}</p>` : ''}

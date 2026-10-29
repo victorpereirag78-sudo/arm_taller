@@ -14,6 +14,22 @@
     <meta name="apple-mobile-web-app-title" content="ARM Taller">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="stylesheet" href="css/login.css?v=20261027">
+    <script>
+        // Con sesión activa se salta directo al sistema, sin dejar ver el formulario
+        // (antes se veía el login un instante antes de que login.js redirigiera).
+        (function () {
+            try {
+                var raw = sessionStorage.getItem('tll_session') || localStorage.getItem('tll_session');
+                var s = raw && JSON.parse(raw);
+                if (s && s.id && s.empresa_id && s.rol) {
+                    document.documentElement.style.cssText = 'visibility:hidden;background:#080c18';
+                    location.replace('app.html');
+                    // Si la navegación no ocurre (sin red, etc.), no dejar la pantalla en blanco
+                    setTimeout(function () { document.documentElement.style.visibility = ''; }, 4000);
+                }
+            } catch (e) { /* storage bloqueado: se muestra el login normal */ }
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
