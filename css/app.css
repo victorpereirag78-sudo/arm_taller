@@ -1462,6 +1462,18 @@ input::-webkit-list-button { color: var(--text-primary, #f0f4ff); }
     .tll-ot-totales { gap: 0.6rem; }
 }
 
+/* ── Presupuestos: indicadores en cuadros, 2 por fila en el móvil ──
+   Antes cada uno ocupaba una fila entera y la lista quedaba fuera de pantalla.
+   Si la cantidad es impar, el último ocupa el ancho completo. */
+@media (max-width: 640px) {
+    #prs-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem; }
+    #prs-kpis .tll-kpi { padding: 0.7rem 0.75rem; min-width: 0; }
+    #prs-kpis .tll-kpi-valor { font-size: 1.25rem !important; overflow-wrap: anywhere; }
+    #prs-kpis .tll-kpi-label { font-size: 0.68rem; line-height: 1.25; }
+    #prs-kpis .tll-kpi-icono { font-size: 0.95rem; }
+    #prs-kpis .tll-kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
 /* ── Presupuesto: pie del detalle ───────────────────────────────────
    Una sola fila de hasta 5 botones, igual en notebook y en móvil: en el
    notebook icono + texto en línea, en el móvil icono arriba y texto debajo. */
